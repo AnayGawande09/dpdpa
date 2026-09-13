@@ -3,6 +3,8 @@ import re
 
 import pytest
 
+from tests.conftest import submit_default_context
+
 CLEAN_SAMPLE_PATH = "data/clean_sample.csv"
 MESSY_SAMPLE_PATH = "data/messy_sample.csv"
 
@@ -17,6 +19,8 @@ async def _upload_and_scan(client, token, file_path):
     )
     assert upload_res.status_code == 200
     scan_id = upload_res.json()["scan_id"]
+
+    await submit_default_context(client, token, scan_id)
 
     scan_res = await client.post(
         f"/datasets/{scan_id}/scan",

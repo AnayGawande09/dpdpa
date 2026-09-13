@@ -112,8 +112,11 @@ async def test_scan_requires_auth(client, auth_token):
 
 @pytest.mark.asyncio
 async def test_scan_runs_detection_and_completes(client, auth_token):
+    from tests.conftest import submit_default_context
+
     upload_res = await _upload(client, auth_token, "sample.csv", CSV_CONTENT)
     scan_id = upload_res.json()["scan_id"]
+    await submit_default_context(client, auth_token, scan_id)
 
     res = await client.post(
         f"/datasets/{scan_id}/scan",

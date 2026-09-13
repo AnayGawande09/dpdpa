@@ -35,10 +35,59 @@
         <p><strong>File:</strong> <span id="result-filename"></span></p>
         <p><strong>Row count:</strong> <span id="result-rowcount"></span></p>
         <p><strong>Columns:</strong> <span id="result-columns"></span></p>
-        <button id="scan-button" disabled>Run Compliance Scan</button>
-        <p id="scan-status" class="success hidden"></p>
       </div>
       <p id="upload-error" class="error hidden"></p>
+    </div>
+
+    <div id="context-section" class="card hidden">
+      <h2>Processing context</h2>
+      <p class="subtitle">Required before scanning — how is this data actually used?</p>
+      <form id="context-form">
+        <label for="purpose">Purpose</label>
+        <select id="purpose">
+          <option>Marketing</option>
+          <option>Analytics</option>
+          <option>Customer Support</option>
+          <option>Legal/Compliance</option>
+          <option>Other</option>
+        </select>
+
+        <label for="consent-status">Consent status</label>
+        <select id="consent-status">
+          <option>Available</option>
+          <option>Not available</option>
+          <option>Unknown</option>
+        </select>
+
+        <label for="retention-value">Retention period</label>
+        <div style="display:flex; gap:8px;">
+          <input type="number" id="retention-value" min="0" value="5" style="width:80px;" />
+          <select id="retention-unit" style="width:auto;">
+            <option>days</option>
+            <option>months</option>
+            <option>years</option>
+          </select>
+        </div>
+
+        <label for="access-scope">Access scope (who/what can access this data)</label>
+        <input type="text" id="access-scope" placeholder="e.g. Marketing, Sales" />
+
+        <label><input type="checkbox" id="encryption-enabled" /> Encryption enabled</label>
+        <label><input type="checkbox" id="access-control-enabled" /> Access control enabled</label>
+
+        <label for="notice-status">Notice status</label>
+        <select id="notice-status">
+          <option>Available</option>
+          <option>Missing</option>
+        </select>
+
+        <button type="submit">Save context</button>
+      </form>
+      <p id="context-error" class="error hidden"></p>
+      <p id="context-success" class="success hidden"></p>
+
+      <button id="scan-button" disabled>Run Compliance Scan</button>
+      <p id="scan-status" class="success hidden"></p>
     </div>
   </div>
 

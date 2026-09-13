@@ -49,3 +49,26 @@ async def auth_token(client):
         data={"username": DEMO_ADMIN_EMAIL, "password": DEMO_ADMIN_PASSWORD},
     )
     return res.json()["access_token"]
+
+
+DEFAULT_TEST_CONTEXT = {
+    "purpose": "Marketing",
+    "consent_status": "Not available",
+    "retention_value": 5,
+    "retention_unit": "years",
+    "access_scope": "Marketing,Sales",
+    "encryption_enabled": False,
+    "access_control_enabled": False,
+    "notice_status": "Missing",
+}
+
+
+async def submit_default_context(client, token, scan_id):
+    """Test helper: satisfy the Phase 4 scan gate with a default context."""
+    res = await client.post(
+        f"/datasets/{scan_id}/context",
+        headers={"Authorization": f"Bearer {token}"},
+        json=DEFAULT_TEST_CONTEXT,
+    )
+    assert res.status_code == 200
+    return res

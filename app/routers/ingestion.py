@@ -12,10 +12,12 @@ from app.db import get_db
 from app.models.dataset import Dataset, DatasetStatus
 from app.models.pii_classification import PiiClassification
 from app.models.pii_detection import Confidence, DetectorType, PiiDetection
+from app.models.processing_context import ProcessingContext
 from app.models.user import User
 from app.pipeline.classification import classify_detection
 from app.pipeline.detection import detect_pii
 from app.routers.auth import get_current_user
+from app.schemas.context import DEFAULT_CONTEXT, ProcessingContextIn, ProcessingContextOut
 from app.schemas.dataset import DatasetResponse, ScanAcceptedResponse, UploadResponse
 
 router = APIRouter(prefix="/datasets", tags=["ingestion"])
@@ -122,6 +124,80 @@ async def get_dataset(
     )
 
 
+async def _get_context(scan_id: str, db: AsyncSession) -> ProcessingContext | None:
+    result = await db.execute(select(ProcessingContext).where(ProcessingContext.scan_id == scan_id))
+    return result.scalar_one_or_none()
+
+
+@router.post("/{scan_id}/context", response_model=ProcessingContextOut)
+async def submit_context(
+    scan_id: str,
+    payload: ProcessingContextIn,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_dataset_or_404(scan_id, db)
+    context = await _get_context(scan_id, db)
+
+    if context is None:
+        context = ProcessingContext(scan_id=scan_id, submitted_by=current_user.id)
+        db.add(context)
+
+    context.purpose = payload.purpose
+    context.consent_status = payload.consent_status
+    context.retention_value = payload.retention_value
+    context.retention_unit = payload.retention_unit
+    context.access_scope = payload.access_scope
+    context.encryption_enabled = payload.encryption_enabled
+    context.access_control_enabled = payload.access_control_enabled
+    context.notice_status = payload.notice_status
+    context.submitted_by = current_user.id
+
+    await db.commit()
+    await db.refresh(context)
+
+    return ProcessingContextOut(
+        scan_id=context.scan_id,
+        purpose=context.purpose,
+        consent_status=context.consent_status,
+        retention_value=context.retention_value,
+        retention_unit=context.retention_unit,
+        access_scope=context.access_scope,
+        encryption_enabled=context.encryption_enabled,
+        access_control_enabled=context.access_control_enabled,
+        notice_status=context.notice_status,
+        submitted=True,
+        submitted_at=context.submitted_at,
+    )
+
+
+@router.get("/{scan_id}/context", response_model=ProcessingContextOut)
+async def get_context(
+    scan_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_dataset_or_404(scan_id, db)
+    context = await _get_context(scan_id, db)
+
+    if context is None:
+        return ProcessingContextOut(scan_id=scan_id, submitted=False, submitted_at=None, **DEFAULT_CONTEXT)
+
+    return ProcessingContextOut(
+        scan_id=context.scan_id,
+        purpose=context.purpose,
+        consent_status=context.consent_status,
+        retention_value=context.retention_value,
+        retention_unit=context.retention_unit,
+        access_scope=context.access_scope,
+        encryption_enabled=context.encryption_enabled,
+        access_control_enabled=context.access_control_enabled,
+        notice_status=context.notice_status,
+        submitted=True,
+        submitted_at=context.submitted_at,
+    )
+
+
 @router.post("/{scan_id}/scan", response_model=ScanAcceptedResponse, status_code=status.HTTP_202_ACCEPTED)
 async def run_scan(
     scan_id: str,
@@ -129,6 +205,15 @@ async def run_scan(
     db: AsyncSession = Depends(get_db),
 ):
     dataset = await _get_dataset_or_404(scan_id, db)
+
+    context = await _get_context(scan_id, db)
+    if context is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Processing context must be submitted before scanning. "
+            f"POST /datasets/{scan_id}/context first.",
+        )
+
     dataset.status = DatasetStatus.scanning
     await db.commit()
 

@@ -132,7 +132,25 @@ $SCAN_ID = $upload.scan_id
 Invoke-RestMethod -Uri "http://localhost:8000/datasets/$SCAN_ID" -Headers $Headers
 ```
 
-**Trigger a scan:**
+**Submit processing context (required before scanning — Phase 4):**
+
+```powershell
+$context = @{
+  purpose = "Marketing"
+  consent_status = "Not available"
+  retention_value = 5
+  retention_unit = "years"
+  access_scope = "Marketing,Sales"
+  encryption_enabled = $false
+  access_control_enabled = $false
+  notice_status = "Missing"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:8000/datasets/$SCAN_ID/context" -Method Post `
+  -Headers $Headers -Body $context -ContentType "application/json"
+```
+
+**Trigger a scan** (returns 400 if context hasn't been submitted yet):
 
 ```powershell
 Invoke-RestMethod -Uri "http://localhost:8000/datasets/$SCAN_ID/scan" -Method Post -Headers $Headers
@@ -184,3 +202,7 @@ end-to-end walkthrough under 3 minutes.)_
   classification against the 6-category DPDP taxonomy, a keyword-based
   fallback path for column_heuristic-only detections, wired into `/scan`,
   and `GET /datasets/{scan_id}/pii/summary`.
+- Phase 4 complete: processing-context capture (purpose, consent,
+  retention, access scope, encryption, access control, notice), a hard
+  gate so `/scan` returns 400 without it, pre-filled defaults, and a
+  frontend context form that blocks scanning until saved.

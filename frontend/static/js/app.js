@@ -64,15 +64,55 @@ document.addEventListener("DOMContentLoaded", () => {
   const uploadForm = document.getElementById("upload-form");
   const uploadError = document.getElementById("upload-error");
   const uploadResult = document.getElementById("upload-result");
+  const contextSection = document.getElementById("context-section");
+  const contextForm = document.getElementById("context-form");
+  const contextError = document.getElementById("context-error");
+  const contextSuccess = document.getElementById("context-success");
   const scanButton = document.getElementById("scan-button");
   const scanStatus = document.getElementById("scan-status");
 
   let currentScanId = null;
 
+  function contextFieldsFromForm() {
+    return {
+      purpose: document.getElementById("purpose").value,
+      consent_status: document.getElementById("consent-status").value,
+      retention_value: parseInt(document.getElementById("retention-value").value, 10),
+      retention_unit: document.getElementById("retention-unit").value,
+      access_scope: document.getElementById("access-scope").value,
+      encryption_enabled: document.getElementById("encryption-enabled").checked,
+      access_control_enabled: document.getElementById("access-control-enabled").checked,
+      notice_status: document.getElementById("notice-status").value,
+    };
+  }
+
+  function fillContextForm(context) {
+    document.getElementById("purpose").value = context.purpose;
+    document.getElementById("consent-status").value = context.consent_status;
+    document.getElementById("retention-value").value = context.retention_value;
+    document.getElementById("retention-unit").value = context.retention_unit;
+    document.getElementById("access-scope").value = context.access_scope;
+    document.getElementById("encryption-enabled").checked = context.encryption_enabled;
+    document.getElementById("access-control-enabled").checked = context.access_control_enabled;
+    document.getElementById("notice-status").value = context.notice_status;
+  }
+
+  async function loadContextDefaults(scanId) {
+    const res = await fetch(`${API_BASE}/datasets/${scanId}/context`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (res.ok) {
+      const context = await res.json();
+      fillContextForm(context);
+      scanButton.disabled = !context.submitted;
+    }
+  }
+
   uploadForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     hide(uploadError);
     hide(uploadResult);
+    hide(contextSection);
     const fileInput = document.getElementById("file-input");
     if (!fileInput.files.length) return;
 
@@ -97,9 +137,40 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("result-rowcount").textContent = data.row_count;
       document.getElementById("result-columns").textContent = data.column_names.join(", ");
       show(uploadResult);
-      scanButton.disabled = false;
+
+      show(contextSection);
+      scanButton.disabled = true; // hard gate: scanning is blocked until context is saved
+      await loadContextDefaults(currentScanId);
     } catch (err) {
       showError(uploadError, "Could not reach the server.");
+    }
+  });
+
+  contextForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hide(contextError);
+    hide(contextSuccess);
+    if (!currentScanId) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/datasets/${currentScanId}/context`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(contextFieldsFromForm()),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showError(contextError, err.detail || "Could not save context.");
+        return;
+      }
+      contextSuccess.textContent = "Context saved.";
+      show(contextSuccess);
+      scanButton.disabled = false; // gate lifted now that context exists
+    } catch (err) {
+      showError(contextError, "Could not reach the server.");
     }
   });
 
