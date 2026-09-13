@@ -5,7 +5,12 @@ import pytest
 from tests.conftest import submit_default_context
 
 MESSY_SAMPLE_PATH = "data/messy_sample.csv"
+CLEAN_SAMPLE_PATH = "data/clean_sample.csv"
 
+# clean_sample.csv only contains Personal Identifier / Contact Information /
+# Location PII — exactly Marketing's necessary-categories set — so a
+# Marketing-purpose context on this dataset can genuinely pass every rule,
+# including data minimization (DPDP-R008).
 GOOD_CONTEXT = {
     "purpose": "Marketing",
     "consent_status": "Available",
@@ -58,7 +63,7 @@ async def test_rules_run_as_part_of_scan_with_default_bad_context(client, auth_t
 
 @pytest.mark.asyncio
 async def test_rules_all_pass_with_good_context(client, auth_token):
-    scan_id = await _upload(client, auth_token, MESSY_SAMPLE_PATH)
+    scan_id = await _upload(client, auth_token, CLEAN_SAMPLE_PATH)
     ctx_res = await client.post(
         f"/datasets/{scan_id}/context",
         headers={"Authorization": f"Bearer {auth_token}"},

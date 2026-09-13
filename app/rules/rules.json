@@ -75,5 +75,16 @@
     "severity": "MEDIUM",
     "requirement": "Data principals have the right to access information about their personal data, correct or erase it, and seek grievance redressal (DPDP Act 2023, Section 11 — Right to access information about personal data; Section 12 — Right to correction and erasure of personal data; Section 13 — Right of grievance redressal). A fiduciary must evidence a channel through which these rights can be exercised.",
     "remediation": "Document a rights-request / grievance-redressal channel (e.g. a grievance officer or support contact) in this dataset's access scope, and make it available to data principals."
+  },
+  {
+    "rule_id": "DPDP-R008",
+    "source": "DPDP Act 2023",
+    "version": "2023",
+    "effective_date": "2027-05-13",
+    "category": "Purpose Limitation",
+    "condition": "data_minimization_satisfied",
+    "severity": "MEDIUM",
+    "requirement": "Personal data collected and processed must be limited to what is necessary in relation to the specified purpose — a data minimization principle implicit in the purpose-bound grounds for processing and consent under DPDP Act 2023 (Section 4 — Grounds for processing personal data; Section 6 — Consent). PII categories detected outside what this assessment treats as necessary for the declared purpose indicate over-collection.",
+    "remediation": "Review the fields flagged as unnecessary for this dataset's declared purpose and stop collecting or remove them, or update the declared purpose if they are genuinely required."
   }
 ]

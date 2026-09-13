@@ -344,3 +344,18 @@ backend startup).
   verified via headless browser on both sample datasets: login → upload →
   context → scan → dashboard (banner correct for both) → report download
   → audit log, all with zero console/CORS errors.
+- Added rule **DPDP-R008 — Data Minimization**: flags PII categories
+  detected in a dataset that aren't necessary for its declared purpose.
+  Necessary categories are defined per purpose (Marketing, Customer
+  Support, Analytics, Legal/Compliance) in
+  `rules_engine.NECESSARY_CATEGORIES_BY_PURPOSE`; "Other" is intentionally
+  left blank, so every detected field is flagged when the purpose is too
+  generic to assess necessity against. Fits the existing generic
+  rule-engine pattern (JSON rule + one registered condition function,
+  zero changes to the evaluator loop) and automatically flows through the
+  existing findings/risk/dashboard pipeline. The PDF report gets a new
+  **Data Minimization** section: declared purpose, the necessary
+  categories for that purpose, and a table of specific fields suggested
+  for removal — verified live against both a Marketing-purpose scan
+  (flagged `pan_num`/`aadhaar_num`/`ip_addr` as unnecessary) and an
+  Other-purpose scan (blank necessary list, every field flagged).

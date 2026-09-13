@@ -5,7 +5,11 @@ import pytest
 from tests.conftest import submit_default_context
 
 MESSY_SAMPLE_PATH = "data/messy_sample.csv"
+CLEAN_SAMPLE_PATH = "data/clean_sample.csv"
 
+# clean_sample.csv only has Personal Identifier / Contact Information /
+# Location PII — exactly Marketing's necessary-categories set — so this
+# context can genuinely satisfy every rule, including data minimization.
 GOOD_CONTEXT = {
     "purpose": "Marketing",
     "consent_status": "Available",
@@ -72,7 +76,7 @@ async def test_risk_score_for_bad_context_lands_high_or_critical(client, auth_to
 
 @pytest.mark.asyncio
 async def test_risk_score_for_good_context_lands_low(client, auth_token):
-    scan_id = await _upload(client, auth_token, MESSY_SAMPLE_PATH)
+    scan_id = await _upload(client, auth_token, CLEAN_SAMPLE_PATH)
     await client.post(
         f"/datasets/{scan_id}/context",
         headers={"Authorization": f"Bearer {auth_token}"},

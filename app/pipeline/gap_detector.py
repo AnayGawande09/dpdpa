@@ -1,9 +1,15 @@
 from dataclasses import dataclass
 
+from app.pipeline.rules_engine import unnecessary_categories_for_purpose
+
 # Rules whose finding should only cite the sensitive PII fields it actually
 # concerns, rather than every detected field in the dataset.
 SENSITIVE_ONLY_RULE_IDS = {"DPDP-R004", "DPDP-R005"}
 SENSITIVE_CATEGORIES = {"Government Identifier", "Financial Information"}
+
+# The data minimization rule cites only the fields that are unnecessary for
+# the declared purpose, not every detected field or a fixed category set.
+DATA_MINIMIZATION_RULE_ID = "DPDP-R008"
 
 # Human-readable label for the control an evidence_field represents. Keyed
 # on evidence_field (already recorded on the rule evaluation) rather than
@@ -16,6 +22,7 @@ MISSING_CONTROL_BY_EVIDENCE_FIELD = {
     "encryption_enabled": "Encryption",
     "notice_status": "Data Principal Notice",
     "access_scope": "an Evidenced Rights/Grievance Mechanism",
+    "data_minimization": "Data Minimization (unnecessary fields should be removed)",
 }
 DEFAULT_MISSING_CONTROL = "a Required Control"
 
@@ -32,7 +39,13 @@ class Finding:
     explanation: str
 
 
-def _affected_fields_for_rule(rule_id: str, category_to_fields: dict[str, list[str]]) -> list[str]:
+def _affected_fields_for_rule(rule_id: str, category_to_fields: dict[str, list[str]], purpose: str) -> list[str]:
+    if rule_id == DATA_MINIMIZATION_RULE_ID:
+        unnecessary_categories = unnecessary_categories_for_purpose(set(category_to_fields.keys()), purpose)
+        fields = []
+        for category in unnecessary_categories:
+            fields.extend(category_to_fields.get(category, []))
+        return fields
     if rule_id in SENSITIVE_ONLY_RULE_IDS:
         fields = []
         for category in SENSITIVE_CATEGORIES:
@@ -59,7 +72,7 @@ def generate_findings(
     findings = []
     for evaluation in fail_evaluations:
         rule = rules_by_id.get(evaluation["rule_id"], {})
-        affected_fields = _affected_fields_for_rule(evaluation["rule_id"], category_to_fields)
+        affected_fields = _affected_fields_for_rule(evaluation["rule_id"], category_to_fields, purpose)
         missing_control = MISSING_CONTROL_BY_EVIDENCE_FIELD.get(
             evaluation["evidence_field"], DEFAULT_MISSING_CONTROL
         )

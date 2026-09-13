@@ -14,8 +14,9 @@ from app.models.dataset import Dataset
 from app.models.finding import Finding
 from app.models.pii_classification import PiiClassification
 from app.models.pii_detection import PiiDetection
+from app.models.processing_context import ProcessingContext
 from app.models.risk_score import RiskScore
-from app.pipeline.rules_engine import load_rules
+from app.pipeline.rules_engine import load_rules, necessary_categories_for_purpose, unnecessary_categories_for_purpose
 
 DISCLAIMER_TEXT = (
     "This report reflects automated assessment findings against a configurable rule set based on the "
@@ -35,20 +36,29 @@ async def _load_report_data(scan_id: str, db: AsyncSession) -> dict:
         )
     ).all()
     category_counts: dict[str, int] = defaultdict(int)
-    for classification, _detection in classification_rows:
+    category_to_fields: dict[str, list[str]] = defaultdict(list)
+    for classification, detection in classification_rows:
         category_counts[classification.category] += 1
+        category_to_fields[classification.category].append(detection.field_name)
 
     findings = (await db.execute(select(Finding).where(Finding.scan_id == scan_id))).scalars().all()
     rules_by_id = {rule["rule_id"]: rule for rule in load_rules()}
 
     risk_score = (await db.execute(select(RiskScore).where(RiskScore.scan_id == scan_id))).scalar_one_or_none()
 
+    context = (
+        await db.execute(select(ProcessingContext).where(ProcessingContext.scan_id == scan_id))
+    ).scalar_one_or_none()
+    purpose = context.purpose.value if context is not None else None
+
     return {
         "dataset": dataset,
         "category_counts": dict(category_counts),
+        "category_to_fields": dict(category_to_fields),
         "findings": findings,
         "rules_by_id": rules_by_id,
         "risk_score": risk_score,
+        "purpose": purpose,
     }
 
 
@@ -92,6 +102,55 @@ def _build_pdf(file_path: str, scan_id: str, data: dict) -> None:
         elements.append(table)
     else:
         elements.append(Paragraph("No PII detected for this scan.", body_style))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    elements.append(Paragraph("Data Minimization", heading_style))
+    purpose = data.get("purpose")
+    category_to_fields = data["category_to_fields"]
+    if purpose is None:
+        elements.append(Paragraph("Processing context not submitted for this scan.", body_style))
+    else:
+        necessary = sorted(necessary_categories_for_purpose(purpose))
+        necessary_text = ", ".join(necessary) if necessary else "None defined for this purpose."
+        elements.append(Paragraph(f"Declared purpose: {purpose}", body_style))
+        elements.append(Paragraph(f"Categories treated as necessary for this purpose: {necessary_text}", body_style))
+
+        unnecessary_categories = sorted(
+            unnecessary_categories_for_purpose(set(category_to_fields.keys()), purpose)
+        )
+        unnecessary_fields = []
+        for category in unnecessary_categories:
+            unnecessary_fields.extend(category_to_fields.get(category, []))
+
+        if unnecessary_fields:
+            elements.append(Spacer(1, 0.15 * cm))
+            elements.append(
+                Paragraph(
+                    "The following fields were detected but are not necessary for the declared "
+                    "purpose and are suggested for removal:",
+                    body_style,
+                )
+            )
+            table_data = [["Field", "Category"]]
+            for category in unnecessary_categories:
+                for field_name in category_to_fields.get(category, []):
+                    table_data.append([field_name, category])
+            table = Table(table_data, colWidths=[7 * cm, 7 * cm])
+            table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#b45309")),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                        ("FONTSIZE", (0, 0), (-1, -1), 9),
+                    ]
+                )
+            )
+            elements.append(table)
+        else:
+            elements.append(
+                Paragraph("No unnecessary fields detected for this purpose.", body_style)
+            )
     elements.append(Spacer(1, 0.5 * cm))
 
     elements.append(Paragraph("Findings", heading_style))

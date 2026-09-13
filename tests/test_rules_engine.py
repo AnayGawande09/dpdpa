@@ -5,7 +5,10 @@ import pytest
 from app.pipeline.rules_engine import CONDITION_REGISTRY, RULES_PATH, evaluate_rules, load_rules
 
 GOOD_CONTEXT = {
-    "purpose": "Marketing",
+    # Legal/Compliance is the purpose whose necessary-categories set covers
+    # SENSITIVE_CATEGORIES below, so this context can genuinely satisfy the
+    # data minimization rule (DPDP-R008) too.
+    "purpose": "Legal/Compliance",
     "consent_status": "Available",
     "retention_value": 1,
     "retention_unit": "years",

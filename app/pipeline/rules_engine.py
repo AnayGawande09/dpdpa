@@ -15,6 +15,32 @@ SENSITIVE_PII_CATEGORIES = {"Government Identifier", "Financial Information"}
 # grievance-redressal channel.
 RIGHTS_MECHANISM_KEYWORDS = ("grievance", "dpo", "privacy", "support", "redress")
 
+# Data minimization (DPDP-R008): which PII categories are actually necessary
+# for each declared purpose. Anything detected outside this set is flagged
+# as an unnecessary field. Deliberately left blank for "Other" — a purpose
+# too generic to determine necessity against (consistent with DPDP-R002
+# already flagging "Other" as insufficiently specific).
+NECESSARY_CATEGORIES_BY_PURPOSE: dict[str, set[str]] = {
+    "Marketing": {"Contact Information", "Personal Identifier", "Location"},
+    "Customer Support": {"Contact Information", "Personal Identifier"},
+    "Analytics": {"Location", "Online Identifier"},
+    "Legal/Compliance": {
+        "Personal Identifier",
+        "Contact Information",
+        "Government Identifier",
+        "Financial Information",
+    },
+    "Other": set(),
+}
+
+
+def necessary_categories_for_purpose(purpose: str) -> set[str]:
+    return NECESSARY_CATEGORIES_BY_PURPOSE.get(purpose, set())
+
+
+def unnecessary_categories_for_purpose(categories: set[str], purpose: str) -> set[str]:
+    return categories - necessary_categories_for_purpose(purpose)
+
 
 @dataclass
 class RuleOutcome:
@@ -76,6 +102,14 @@ def check_rights_mechanism_evidenced(categories: set[str], context: dict) -> Rul
     return RuleOutcome("FAIL", "access_scope")
 
 
+def check_data_minimization_satisfied(categories: set[str], context: dict) -> RuleOutcome:
+    purpose = context.get("purpose")
+    unnecessary = unnecessary_categories_for_purpose(categories, purpose)
+    if unnecessary:
+        return RuleOutcome("FAIL", "data_minimization")
+    return RuleOutcome("PASS", "data_minimization")
+
+
 # The registry maps each rules.json "condition" string to its check function.
 # ---------------------------------------------------------------------------
 # To add an 11th rule: (1) append a new object to app/rules/rules.json with a
@@ -91,6 +125,7 @@ CONDITION_REGISTRY = {
     "encryption_present_for_sensitive_pii": check_encryption_present_for_sensitive_pii,
     "notice_available": check_notice_available,
     "rights_mechanism_evidenced": check_rights_mechanism_evidenced,
+    "data_minimization_satisfied": check_data_minimization_satisfied,
 }
 
 
