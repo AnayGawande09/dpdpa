@@ -197,6 +197,19 @@ $risk.score; $risk.band; $risk.breakdown | Format-Table
 Invoke-RestMethod -Uri "http://localhost:8000/datasets?page=1&page_size=5" -Headers $Headers
 ```
 
+**Generate and download a report (Phase 8):**
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/datasets/$SCAN_ID/report" -Method Post -Headers $Headers
+Invoke-WebRequest -Uri "http://localhost:8000/datasets/$SCAN_ID/report" -Headers $Headers -OutFile "report.pdf"
+```
+
+**View the audit log (Phase 8):**
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/audit-log?action=report_exported" -Headers $Headers
+```
+
 **View the dashboard:** open `http://localhost:5500/dashboard.html?scan_id=<SCAN_ID>` in a browser
 after logging in via `index.html` in the same browser (the dashboard reuses the JWT from
 `localStorage`).
@@ -254,3 +267,14 @@ end-to-end walkthrough under 3 minutes.)_
   session (Playwright): zero console errors, zero CORS errors, all panels
   driven by real 200 responses, banner correctly present for the "bad"
   scan and absent for the "clean" scan.
+- Phase 8 complete: PDF report generation (reportlab) with dataset name,
+  scan ID, timestamp, PII summary, full findings (rule_id/evidence/
+  severity/remediation), risk score/breakdown, and the exact required
+  disclaimer footer — handles the zero-findings case explicitly. A full
+  `audit_log` (login/upload/context_submitted/scan_run/report_exported)
+  is written at every one of those action points. `POST`/`GET
+  /datasets/{scan_id}/report` and `GET /audit-log` (paginated, filterable
+  by scan_id/user_id/action) are live; the dashboard has a working
+  Download Report button and a real audit log panel. Verified end-to-end
+  in a headless browser: real PDF downloaded and its extracted text
+  checked for the disclaimer, findings, and risk sections.

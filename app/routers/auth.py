@@ -4,7 +4,9 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit import record_audit
 from app.db import get_db
+from app.models.audit_log import AuditAction
 from app.models.user import User
 from app.schemas.auth import TokenResponse
 from app.security import create_access_token, decode_access_token, verify_password
@@ -28,6 +30,8 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     token = create_access_token(subject=user.id)
+    await record_audit(db, user_id=user.id, action=AuditAction.login)
+    await db.commit()
     return TokenResponse(access_token=token)
 
 

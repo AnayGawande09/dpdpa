@@ -6,3 +6,4 @@ from app.models.processing_context import ProcessingContext  # noqa: F401
 from app.models.rule_evaluation import RuleEvaluationRow  # noqa: F401
 from app.models.finding import Finding  # noqa: F401
 from app.models.risk_score import RiskScore  # noqa: F401
+from app.models.audit_log import AuditLog  # noqa: F401

@@ -7,8 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit import record_audit
 from app.config import settings
 from app.db import get_db
+from app.models.audit_log import AuditAction
 from app.models.dataset import Dataset, DatasetStatus
 from app.models.pii_classification import PiiClassification
 from app.models.pii_detection import Confidence, DetectorType, PiiDetection
@@ -95,6 +97,9 @@ async def upload_dataset(
         status=DatasetStatus.uploaded,
     )
     db.add(dataset)
+    await record_audit(
+        db, user_id=current_user.id, action=AuditAction.upload, scan_id=scan_id, details={"filename": filename}
+    )
     await db.commit()
 
     return UploadResponse(
@@ -193,6 +198,7 @@ async def submit_context(
     context.notice_status = payload.notice_status
     context.submitted_by = current_user.id
 
+    await record_audit(db, user_id=current_user.id, action=AuditAction.context_submitted, scan_id=scan_id)
     await db.commit()
     await db.refresh(context)
 
@@ -383,5 +389,12 @@ async def run_scan(
         risk_score_row.breakdown = breakdown_json
 
     dataset.status = DatasetStatus.scanned
+    await record_audit(
+        db,
+        user_id=current_user.id,
+        action=AuditAction.scan_run,
+        scan_id=scan_id,
+        details={"risk_score": risk_result.score, "risk_band": risk_result.band},
+    )
     await db.commit()
     return ScanAcceptedResponse(scan_id=dataset.id, status=dataset.status)

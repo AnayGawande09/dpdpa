@@ -63,6 +63,24 @@
       </table>
     </div>
 
+    <div class="panel">
+      <h2>Report</h2>
+      <button id="download-report-button">Download Report</button>
+      <p id="report-status" class="success" hidden></p>
+      <p id="report-error" class="error" hidden></p>
+    </div>
+
+    <div class="panel">
+      <h2>Audit Log</h2>
+      <table>
+        <thead>
+          <tr><th>Action</th><th>Scan</th><th>When</th></tr>
+        </thead>
+        <tbody id="audit-tbody"></tbody>
+      </table>
+      <p class="empty-state" id="audit-empty" hidden>No audit entries yet.</p>
+    </div>
+
     <div class="panel full">
       <h2>Scan History</h2>
       <table>

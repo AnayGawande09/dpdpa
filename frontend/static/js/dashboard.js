@@ -232,6 +232,73 @@ async function loadScanHistory(page) {
   document.getElementById("history-next").onclick = () => loadScanHistory(data.page + 1);
 }
 
+async function downloadReport(scanId) {
+  const statusEl = document.getElementById("report-status");
+  const errorEl = document.getElementById("report-error");
+  statusEl.hidden = true;
+  errorEl.hidden = true;
+
+  try {
+    const genRes = await fetch(`${API_BASE}/datasets/${scanId}/report`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    if (genRes.status === 401) return redirectToLoginOnAuthFailure();
+    if (!genRes.ok) {
+      errorEl.textContent = "Could not generate report.";
+      errorEl.hidden = false;
+      return;
+    }
+
+    const downloadRes = await fetch(`${API_BASE}/datasets/${scanId}/report`, { headers: authHeaders() });
+    if (downloadRes.status === 401) return redirectToLoginOnAuthFailure();
+    if (!downloadRes.ok) {
+      errorEl.textContent = "Could not download report.";
+      errorEl.hidden = false;
+      return;
+    }
+
+    const blob = await downloadRes.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${scanId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    statusEl.textContent = "Report downloaded.";
+    statusEl.hidden = false;
+  } catch (err) {
+    errorEl.textContent = "Could not reach the server.";
+    errorEl.hidden = false;
+  }
+}
+
+async function loadAuditLog(scanId) {
+  const data = await fetchJson(`/audit-log?scan_id=${scanId}&page_size=20`);
+  const tbody = document.getElementById("audit-tbody");
+  const emptyEl = document.getElementById("audit-empty");
+  tbody.innerHTML = "";
+
+  if (!data || data.items.length === 0) {
+    emptyEl.hidden = false;
+    return;
+  }
+  emptyEl.hidden = true;
+
+  data.items.forEach((entry) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${entry.action}</td>
+      <td>${entry.scan_id ? entry.scan_id.slice(0, 8) + "…" : "—"}</td>
+      <td>${new Date(entry.occurred_at).toLocaleString()}</td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
 async function loadDashboard(scanId) {
   document.getElementById("no-scan-message").hidden = !!scanId;
   if (!scanId) return;
@@ -243,6 +310,9 @@ async function loadDashboard(scanId) {
   await loadRules(scanId);
   const findings = await loadFindings(scanId);
   updateAlertBanner(riskData, findings);
+  await loadAuditLog(scanId);
+
+  document.getElementById("download-report-button").onclick = () => downloadReport(scanId);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
