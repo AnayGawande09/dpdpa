@@ -26,3 +26,10 @@ class DatasetResponse(BaseModel):
 class ScanAcceptedResponse(BaseModel):
     scan_id: str
     status: DatasetStatus
+
+
+class DatasetListResponse(BaseModel):
+    items: list[DatasetResponse]
+    total: int
+    page: int
+    page_size: int

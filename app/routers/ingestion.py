@@ -4,7 +4,7 @@ import uuid
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -24,7 +24,7 @@ from app.pipeline.risk_engine import compute_risk
 from app.pipeline.rules_engine import evaluate_rules, load_rules
 from app.routers.auth import get_current_user
 from app.schemas.context import DEFAULT_CONTEXT, ProcessingContextIn, ProcessingContextOut
-from app.schemas.dataset import DatasetResponse, ScanAcceptedResponse, UploadResponse
+from app.schemas.dataset import DatasetListResponse, DatasetResponse, ScanAcceptedResponse, UploadResponse
 
 router = APIRouter(prefix="/datasets", tags=["ingestion"])
 
@@ -102,6 +102,40 @@ async def upload_dataset(
         filename=filename,
         row_count=row_count,
         column_names=column_names,
+    )
+
+
+@router.get("", response_model=DatasetListResponse)
+async def list_datasets(
+    page: int = 1,
+    page_size: int = 10,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    page = max(page, 1)
+    page_size = max(1, min(page_size, 100))
+
+    total = (await db.execute(select(func.count()).select_from(Dataset))).scalar_one()
+    result = await db.execute(
+        select(Dataset).order_by(Dataset.uploaded_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    )
+    datasets = result.scalars().all()
+
+    return DatasetListResponse(
+        items=[
+            DatasetResponse(
+                scan_id=d.id,
+                filename=d.filename,
+                row_count=d.row_count,
+                column_names=d.column_names,
+                status=d.status,
+                uploaded_at=d.uploaded_at,
+            )
+            for d in datasets
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
     )
 
 

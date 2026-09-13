@@ -191,6 +191,16 @@ $risk = Invoke-RestMethod -Uri "http://localhost:8000/datasets/$SCAN_ID/risk" -H
 $risk.score; $risk.band; $risk.breakdown | Format-Table
 ```
 
+**View scan history (paginated, Phase 7):**
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/datasets?page=1&page_size=5" -Headers $Headers
+```
+
+**View the dashboard:** open `http://localhost:5500/dashboard.html?scan_id=<SCAN_ID>` in a browser
+after logging in via `index.html` in the same browser (the dashboard reuses the JWT from
+`localStorage`).
+
 For later phases: GET/POST-without-a-file endpoints follow the same
 `Invoke-RestMethod -Uri ... -Headers $Headers` pattern shown above (add
 `-Method Post -Body (... | ConvertTo-Json) -ContentType "application/json"`
@@ -234,3 +244,13 @@ end-to-end walkthrough under 3 minutes.)_
   a rescan), plus `GET /datasets/{scan_id}/findings` and
   `GET /datasets/{scan_id}/risk`. The "bad" messy-sample scenario lands at
   76/100 (High), the "good" scenario at 28/100 (Low).
+- Phase 7 complete: `frontend/dashboard.html` renders live PII summary and
+  risk-breakdown charts (Chart.js), a sortable/expandable findings table,
+  rule pass/fail/unknown counts, and a paginated scan history — all wired
+  to the real API with no mock data. An alert banner fires when the risk
+  band is High/Critical or any finding is CRITICAL, showing the top
+  recommended action. `GET /datasets` (paginated, newest-first) was added
+  to back the scan history table. Verified in an actual headless Chromium
+  session (Playwright): zero console errors, zero CORS errors, all panels
+  driven by real 200 responses, banner correctly present for the "bad"
+  scan and absent for the "clean" scan.

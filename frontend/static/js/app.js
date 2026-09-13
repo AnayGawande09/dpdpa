@@ -187,6 +187,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (res.status === 202) {
         const data = await res.json();
         scanStatus.textContent = `Scan status: ${data.status}`;
+        const dashboardLink = document.getElementById("dashboard-link");
+        const dashboardAnchor = document.getElementById("dashboard-link-anchor");
+        dashboardAnchor.href = `dashboard.html?scan_id=${currentScanId}`;
+        show(dashboardLink);
       } else {
         const err = await res.json().catch(() => ({}));
         scanStatus.textContent = `Scan failed: ${err.detail || res.status}`;

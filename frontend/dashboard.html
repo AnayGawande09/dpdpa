@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DPDP Compliance Dashboard</title>
+  <link rel="stylesheet" href="static/css/dashboard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <h1>DPDP Compliance Analyzer — Dashboard</h1>
+    <span class="scan-id" id="topbar-scan-id"></span>
+  </div>
+
+  <div id="alert-banner" class="alert-banner" hidden>
+    <strong id="alert-title"></strong>
+    <span id="alert-body"></span>
+  </div>
+
+  <div class="wrap">
+    <div class="panel full" id="no-scan-message" hidden>
+      <p class="empty-state">No scan selected. Pick one from Scan History below, or append
+        <code>?scan_id=&lt;id&gt;</code> to this page's URL.</p>
+    </div>
+
+    <div class="panel">
+      <h2>PII Summary</h2>
+      <canvas id="pii-summary-chart"></canvas>
+      <p class="empty-state" id="pii-summary-empty" hidden>No PII detected for this scan.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Risk Score</h2>
+      <div class="score-row">
+        <span class="score-value" id="risk-score">—</span>
+        <span class="badge" id="risk-band"></span>
+      </div>
+      <canvas id="risk-breakdown-chart"></canvas>
+      <p class="empty-state" id="risk-empty" hidden>Risk score not yet computed for this scan.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Compliance Rule Outcomes</h2>
+      <div class="rule-counts">
+        <div class="rule-count"><div class="num" id="rules-pass-count">0</div><div class="label">PASS</div></div>
+        <div class="rule-count"><div class="num" id="rules-fail-count">0</div><div class="label">FAIL</div></div>
+        <div class="rule-count"><div class="num" id="rules-unknown-count">0</div><div class="label">UNKNOWN</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Findings</h2>
+      <p class="empty-state" id="findings-empty" hidden>No findings for this scan.</p>
+      <table id="findings-table" hidden>
+        <thead>
+          <tr>
+            <th data-sort="severity">Severity ▾</th>
+            <th data-sort="category">Category</th>
+            <th data-sort="rule_id">Rule</th>
+          </tr>
+        </thead>
+        <tbody id="findings-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="panel full">
+      <h2>Scan History</h2>
+      <table>
+        <thead>
+          <tr><th>Filename</th><th>Uploaded</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+      <div class="pagination">
+        <button id="history-prev">Previous</button>
+        <span id="history-page-label"></span>
+        <button id="history-next">Next</button>
+      </div>
+    </div>
+
+    <p class="disclaimer full">
+      This dashboard reflects automated assessment findings against a configurable rule set based on the
+      DPDP Act 2023 and DPDP Rules 2025. It is not legal advice and does not constitute a definitive
+      compliance determination.
+    </p>
+  </div>
+
+  <script src="static/js/dashboard.js"></script>
+</body>
+</html>
