@@ -32,6 +32,31 @@ from app.schemas.dataset import DatasetListResponse, DatasetResponse, ScanAccept
 router = APIRouter(prefix="/datasets", tags=["ingestion"])
 
 ALLOWED_EXTENSIONS = {".csv", ".json", ".txt", ".xlsx"}
+UPLOAD_CHUNK_SIZE = 4 * 1024 * 1024  # 4 MB per chunk while streaming to disk
+
+
+async def _stream_upload_to_disk(file: UploadFile, file_path: str, max_bytes: int) -> None:
+    """Write the upload to disk in chunks instead of buffering the whole
+    thing in memory first — the previous `await file.read()` fully
+    materialized the entire upload as one in-memory bytes object before
+    even checking its size, which doesn't scale to large (multi-GB)
+    datasets. Aborts (and cleans up the partial file) as soon as the
+    configured size limit is exceeded, without reading the rest."""
+    total_written = 0
+    with open(file_path, "wb") as out_file:
+        while True:
+            chunk = await file.read(UPLOAD_CHUNK_SIZE)
+            if not chunk:
+                break
+            total_written += len(chunk)
+            if total_written > max_bytes:
+                out_file.close()
+                os.remove(file_path)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File exceeds max upload size of {settings.MAX_UPLOAD_MB} MB",
+                )
+            out_file.write(chunk)
 
 
 def load_dataframe(file_path: str, extension: str) -> pd.DataFrame:
@@ -65,20 +90,17 @@ async def upload_dataset(
             detail=f"Unsupported file type '{extension}'. Allowed: {sorted(ALLOWED_EXTENSIONS)}",
         )
 
-    contents = await file.read()
-    max_bytes = settings.MAX_UPLOAD_MB * 1024 * 1024
-    if len(contents) > max_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File exceeds max upload size of {settings.MAX_UPLOAD_MB} MB",
-        )
-
     scan_id = str(uuid.uuid4())
     scan_dir = os.path.join(settings.UPLOAD_DIR, scan_id)
     os.makedirs(scan_dir, exist_ok=True)
     file_path = os.path.join(scan_dir, filename)
-    with open(file_path, "wb") as f:
-        f.write(contents)
+
+    max_bytes = settings.MAX_UPLOAD_MB * 1024 * 1024
+    try:
+        await _stream_upload_to_disk(file, file_path, max_bytes)
+    except HTTPException:
+        os.rmdir(scan_dir)
+        raise
 
     try:
         row_count, column_names = _parse_file(file_path, extension)

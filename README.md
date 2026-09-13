@@ -5,6 +5,17 @@ and evaluates it against a configurable set of DPDP Act 2023 / DPDP Rules
 2025 compliance rules, producing explainable findings and a weighted risk
 score. See [SCOPE.md](SCOPE.md) for the guardrails this build stays inside.
 
+Uploads accept files up to `MAX_UPLOAD_MB` (`.env`, default 2048 MB / 2 GB)
+and are streamed to disk in chunks rather than buffered in memory, so the
+limit scales to real dataset sizes without risking an out-of-memory crash
+on a large upload. Raise `MAX_UPLOAD_MB` further in `.env` if you need to
+accept larger files than the default. Note this doesn't change how the
+detection pipeline itself loads a file — `pandas.read_csv`/`read_excel`
+still parse the whole file into memory once uploaded, so very large files
+(multi-GB) will be slower to scan and use more RAM during that step; this
+is a batch-pipeline tool (see `SCOPE.md`), not a streaming/chunked
+processor.
+
 ## Stack
 
 - **Backend**: FastAPI (async)

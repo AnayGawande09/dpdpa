@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./dpdp.db"
     SECRET_KEY: str = "change-this-demo-secret-key-in-production"
     UPLOAD_DIR: str = "./uploads"
-    MAX_UPLOAD_MB: int = 10
+    MAX_UPLOAD_MB: int = 2048
 
 
 settings = Settings()

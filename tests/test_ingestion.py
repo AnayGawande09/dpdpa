@@ -78,6 +78,33 @@ async def test_upload_rejects_oversized_file(client, auth_token, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_upload_accepts_file_larger_than_old_10mb_cap(client, auth_token):
+    # The default limit used to be 10 MB and the upload path used to buffer
+    # the whole file into memory before checking its size. This proves both
+    # the raised default limit and the streaming-to-disk rewrite actually
+    # handle a file bigger than that old cap.
+    rows = ["name,email"] + [f"user{i},user{i}@example.com" for i in range(400_000)]
+    content = ("\n".join(rows) + "\n").encode("utf-8")
+    assert len(content) > 10 * 1024 * 1024  # bigger than the old default cap
+
+    res = await _upload(client, auth_token, "big_sample.csv", content)
+    assert res.status_code == 200
+    assert res.json()["row_count"] == 400_000
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_oversized_file_without_buffering_whole_file(client, auth_token, monkeypatch):
+    from app.config import settings
+
+    # 1 MB limit with a ~5 MB file: proves rejection happens based on a
+    # streamed running total, not by reading the entire file first.
+    monkeypatch.setattr(settings, "MAX_UPLOAD_MB", 1)
+    content = ("x" * (5 * 1024 * 1024)).encode("utf-8")
+    res = await _upload(client, auth_token, "oversized.csv", content)
+    assert res.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_get_dataset_404_on_unknown_scan_id(client, auth_token):
     res = await client.get(
         "/datasets/does-not-exist",
