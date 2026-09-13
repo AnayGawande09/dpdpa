@@ -54,12 +54,22 @@ reports/           Generated PDF reports land here
 data/              Sample datasets for testing
 ```
 
+## Demo login (seeded automatically on startup)
+
+```
+email:    admin@example.com
+password: DemoPass123!
+```
+
 ## Demo script
 
-_(Will be filled in during Phase 9 with the exact click path, sample login
-credentials, and a runnable end-to-end walkthrough under 3 minutes.)_
+_(Will be filled in during Phase 9 with the exact click path and a runnable
+end-to-end walkthrough under 3 minutes.)_
 
 ## Status
 
-Phase 0 complete: scaffold, async DB engine, Alembic wired to the async
-engine, guardrails documented, `/health` doing a real DB round-trip.
+- Phase 0 complete: scaffold, async DB engine, Alembic wired to the async
+  engine, guardrails documented, `/health` doing a real DB round-trip.
+- Phase 1 complete: JWT auth with a seeded demo admin, file upload
+  (csv/json/txt/xlsx) with validation, dataset metadata storage, a
+  `/scan` stub, and a login + upload frontend page.

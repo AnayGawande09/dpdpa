@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DPDP Compliance Analyzer</title>
+  <link rel="stylesheet" href="static/css/style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>DPDP Compliance Analyzer</h1>
+    <p class="subtitle">Upload a dataset to check for potential compliance gaps.</p>
+
+    <div id="login-section" class="card">
+      <h2>Log in</h2>
+      <form id="login-form">
+        <label for="email">Email</label>
+        <input type="email" id="email" required value="admin@example.com" />
+        <label for="password">Password</label>
+        <input type="password" id="password" required value="DemoPass123!" />
+        <button type="submit">Log in</button>
+      </form>
+      <p id="login-error" class="error hidden"></p>
+    </div>
+
+    <div id="upload-section" class="card hidden">
+      <h2>Connect a data source</h2>
+      <form id="upload-form">
+        <label for="file-input">Upload file (csv, json, txt, xlsx)</label>
+        <input type="file" id="file-input" accept=".csv,.json,.txt,.xlsx" required />
+        <button type="submit">Upload</button>
+      </form>
+      <button class="secondary" disabled title="Coming soon">Connect live source (coming soon)</button>
+
+      <div id="upload-result" class="hidden">
+        <p><strong>File:</strong> <span id="result-filename"></span></p>
+        <p><strong>Row count:</strong> <span id="result-rowcount"></span></p>
+        <p><strong>Columns:</strong> <span id="result-columns"></span></p>
+        <button id="scan-button" disabled>Run Compliance Scan</button>
+        <p id="scan-status" class="success hidden"></p>
+      </div>
+      <p id="upload-error" class="error hidden"></p>
+    </div>
+  </div>
+
+  <script src="static/js/app.js"></script>
+</body>
+</html>

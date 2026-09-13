@@ -1,0 +1,9 @@
+cust_id,full_nm,cust_email,contact_no,loc,aadhaar_num,pan_num,ip_addr,notes
+C001,R. Kumar,r.kumar83@gmail.com,98-7654-3210,Bengaluru,234567890123,ABCDE1234F,192.168.1.10,"Contacted via support ticket"
+C002,A. Sharma,a.sharma_wk@yahoo.com,91234 56780,Kolkata,345678901234,BCDEF2345G,192.168.1.11,"Requested refund"
+C003,V. Singh,,9988776655,Jaipur,,CDEFG3456H,10.0.0.5,"No email on file"
+C004,P. Nair,p.nair@gmail.com,90123-45678,Kochi,456789012345,,172.16.0.2,"VIP customer"
+C005,S. Reddy,s.reddy@hotmail.com,,Hyderabad,567890123456,DEFGH4567I,192.168.1.12,"Follow up needed"
+C006,M. Iyer,m.iyer@gmail.com,93456 78901,Chennai,,EFGHI5678J,10.0.0.9,"Newsletter subscriber"
+C007,A. Mehta,a.mehta@gmail.com,98712-34560,Chandigarh,678901234567,,192.168.1.13,""
+C008,K. Joshi,k.joshi@yahoo.com,94567 89012,Pune,,FGHIJ6789K,172.16.0.8,"Escalated case"

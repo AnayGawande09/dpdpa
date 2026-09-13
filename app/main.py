@@ -1,11 +1,21 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.db import AsyncSessionLocal
 from app.routers import auth, findings, ingestion, pii, reports, rules
+from app.seed import seed_demo_admin
 
-app = FastAPI(title="DPDP Compliance Analyzer")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await seed_demo_admin()
+    yield
+
+
+app = FastAPI(title="DPDP Compliance Analyzer", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

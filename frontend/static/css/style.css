@@ -1,0 +1,58 @@
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: #f4f6f8;
+  color: #1a1a1a;
+  margin: 0;
+  padding: 0;
+}
+.container {
+  max-width: 720px;
+  margin: 48px auto;
+  background: #fff;
+  border-radius: 8px;
+  padding: 32px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+h1 { font-size: 22px; margin-bottom: 4px; }
+.subtitle { color: #666; margin-bottom: 24px; font-size: 14px; }
+label { display: block; margin-top: 14px; font-size: 13px; font-weight: 600; color: #333; }
+input[type=email], input[type=password], input[type=file] {
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 4px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+button {
+  margin-top: 18px;
+  padding: 10px 18px;
+  background: #2454ff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+button:disabled { background: #aab4d6; cursor: not-allowed; }
+button.secondary { background: #444; }
+.hidden { display: none; }
+.card {
+  border: 1px solid #e2e2e2;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 20px;
+}
+.error { color: #c0392b; font-size: 13px; margin-top: 8px; }
+.success { color: #1e7e34; font-size: 13px; margin-top: 8px; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 13px; }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  background: #eef1ff;
+  color: #2454ff;
+}
