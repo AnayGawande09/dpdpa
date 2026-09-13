@@ -92,6 +92,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const contextSuccess = document.getElementById("context-success");
   const scanButton = document.getElementById("scan-button");
   const scanStatus = document.getElementById("scan-status");
+  const scanSpinner = document.getElementById("scan-spinner");
+  const scanStatusText = document.getElementById("scan-status-text");
+
+  function setScanStatus(text, spinning) {
+    scanStatusText.textContent = text;
+    scanSpinner.classList.toggle("hidden", !spinning);
+  }
 
   let currentScanId = null;
 
@@ -199,10 +206,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  const POLL_INTERVAL_MS = 1000;
+  const POLL_MAX_ATTEMPTS = 60; // ~1 minute before giving up
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  // The scan runs as a server-side background task, so /scan returns
+  // immediately with status "scanning" — poll GET /datasets/{scan_id}
+  // until it flips to "scanned" instead of freezing the button waiting
+  // for a synchronous response.
+  async function pollUntilScanned(scanId) {
+    for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+      const res = await fetch(`${API_BASE}/datasets/${scanId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (handleAuthFailure(res)) return null;
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.status === "scanned") return data;
+      setScanStatus(`Scanning... (status: ${data.status})`, true);
+      await sleep(POLL_INTERVAL_MS);
+    }
+    return null;
+  }
+
   scanButton.addEventListener("click", async () => {
     if (!currentScanId) return;
     scanButton.disabled = true;
-    scanStatus.textContent = "Starting scan...";
+    setScanStatus("Starting scan...", true);
     show(scanStatus);
     try {
       const res = await fetch(`${API_BASE}/datasets/${currentScanId}/scan`, {
@@ -211,18 +242,23 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       if (handleAuthFailure(res)) return;
       if (res.status === 202) {
-        const data = await res.json();
-        scanStatus.textContent = `Scan status: ${data.status}`;
+        setScanStatus("Scanning... this runs in the background, the app stays responsive.", true);
+        const finalState = await pollUntilScanned(currentScanId);
+        if (!finalState) {
+          setScanStatus("Scan did not complete in time — check back shortly or retry.", false);
+          return;
+        }
+        setScanStatus(`Scan status: ${finalState.status}`, false);
         const dashboardLink = document.getElementById("dashboard-link");
         const dashboardAnchor = document.getElementById("dashboard-link-anchor");
         dashboardAnchor.href = `dashboard.html?scan_id=${currentScanId}`;
         show(dashboardLink);
       } else {
         const err = await res.json().catch(() => ({}));
-        scanStatus.textContent = `Scan failed: ${err.detail || res.status}`;
+        setScanStatus(`Scan failed: ${err.detail || res.status}`, false);
       }
     } catch (err) {
-      scanStatus.textContent = "Could not reach the server.";
+      setScanStatus("Could not reach the server.", false);
     } finally {
       scanButton.disabled = false;
     }

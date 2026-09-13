@@ -87,8 +87,19 @@
       <p id="context-success" class="success hidden"></p>
 
       <button id="scan-button" disabled>Run Compliance Scan</button>
-      <p id="scan-status" class="success hidden"></p>
+      <p id="scan-status" class="success hidden"><span id="scan-spinner" class="spinner hidden"></span><span id="scan-status-text"></span></p>
       <p id="dashboard-link" class="hidden"><a id="dashboard-link-anchor" href="#">View Dashboard →</a></p>
+    </div>
+
+    <div class="card how-it-works">
+      <h2>How this works</h2>
+      <ol class="pipeline-steps">
+        <li><strong>Detection</strong> — regex patterns, spaCy NER, and column-name heuristics scan every field for likely PII (email, phone, Aadhaar-like, PAN-like, IP, names, locations).</li>
+        <li><strong>Classification</strong> — each detection is mapped to a DPDP taxonomy category (Personal Identifier, Contact Information, Location, Government Identifier, Financial Information, Online Identifier).</li>
+        <li><strong>Rule Engine</strong> — the detected PII and your declared processing context (purpose, consent, retention, security controls) are evaluated against a versioned set of DPDP Act 2023 / DPDP Rules 2025 rules.</li>
+        <li><strong>Gap Detection</strong> — every failed rule becomes a finding: which fields are affected, what control is missing, and a recommended action.</li>
+        <li><strong>Risk Score</strong> — findings and PII sensitivity are combined into an explainable 0–100 score with a fully traceable breakdown.</li>
+      </ol>
     </div>
   </div>
 

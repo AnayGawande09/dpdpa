@@ -221,8 +221,58 @@ for JSON bodies); only file uploads need the `Invoke-FileUpload` helper.
 
 ## Demo script
 
-_(Will be filled in during Phase 9 with the exact click path and a runnable
-end-to-end walkthrough under 3 minutes.)_
+Runs end to end in under 3 minutes. Two terminals, then a browser.
+
+**Terminal 1 — backend:**
+
+```powershell
+cd dpdp-compliance-analyzer
+.\venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload
+```
+
+**Terminal 2 — frontend:**
+
+```powershell
+cd dpdp-compliance-analyzer\frontend
+python -m http.server 5500
+```
+
+**In the browser**, go to `http://localhost:5500/index.html`:
+
+1. **Log in** — email and password are pre-filled (`admin@example.com` /
+   `DemoPass123!`). Click **Log in**.
+2. **Upload** — click **Choose File**, pick `data/messy_sample.csv` from the
+   repo (this is the "bad" dataset — no consent, no encryption, broad
+   access). Click **Upload**. Row count and columns appear immediately.
+3. **Processing context** — the form pre-fills with weak defaults on
+   purpose. For the full "bad" demo, leave Purpose as **Other**, Consent
+   status as **Unknown**/**Not available**, leave Encryption and Access
+   control unchecked, leave Notice status as **Missing**. Click
+   **Save context**.
+4. **Scan** — click **Run Compliance Scan**. A spinner and status text show
+   the scan running in the background (the button doesn't freeze — other
+   tabs/requests keep working while this runs). When it finishes, click
+   **View Dashboard →**.
+5. **Dashboard** — you'll see: a red **alert banner** at the top (risk band
+   High/Critical) with the top recommended action; a PII Summary chart; a
+   Risk Score with a full points breakdown; Compliance Rule Outcomes
+   (PASS/FAIL/UNKNOWN counts); a sortable Findings table (click a row to
+   expand rule_id/evidence/explanation); an Audit Log panel; and Scan
+   History.
+6. **Download the report** — click **Download Report** in the Report panel;
+   a real PDF downloads with the PII summary, every finding, the risk
+   breakdown, and the required disclaimer footer.
+7. **Repeat with the clean dataset** — go back to `index.html`, upload
+   `data/clean_sample.csv`, this time fill the context form with strong
+   values (Purpose: Marketing, Consent: Available, check both Encryption
+   and Access control, Notice: Available, and put something like
+   `grievance officer: privacy@example.com` in Access scope), scan, and
+   view its dashboard — no alert banner this time, and the risk band is
+   Low.
+
+Sample login: `admin@example.com` / `DemoPass123!` (seeded automatically on
+backend startup).
 
 ## Status
 
@@ -278,3 +328,19 @@ end-to-end walkthrough under 3 minutes.)_
   Download Report button and a real audit log panel. Verified end-to-end
   in a headless browser: real PDF downloaded and its extracted text
   checked for the disclaimer, findings, and risk sections.
+- Phase 9 complete: `/scan` now runs as a FastAPI BackgroundTask with the
+  CPU-bound pandas/spaCy work offloaded via `asyncio.to_thread`, so the
+  API stays responsive during a scan (verified live: `/health` answered
+  in ~0.21s during an in-flight scan, identical to its no-load baseline);
+  the frontend polls `GET /datasets/{scan_id}` with a spinner instead of
+  freezing the scan button. Added a "How this works" explainer panel
+  (Detection → Classification → Rule Engine → Gap Detection → Risk
+  Score). Audited `rules.json`: all 7 rules cite a real DPDP Act 2023
+  section or an explicit "general obligation" fallback, consistent with
+  SCOPE.md's no-fabricated-citations guardrail. Grepped the codebase for
+  raw/unmasked PII leak paths (server has zero logging statements, and
+  the only raw DataFrame reads feed straight into the masking pipeline or
+  row/column-count extraction) — none found. Full end-to-end flow
+  verified via headless browser on both sample datasets: login → upload →
+  context → scan → dashboard (banner correct for both) → report download
+  → audit log, all with zero console/CORS errors.

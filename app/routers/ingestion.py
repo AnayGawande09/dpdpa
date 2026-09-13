@@ -1,15 +1,16 @@
+import asyncio
 import json
 import os
 import uuid
 
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit import record_audit
 from app.config import settings
-from app.db import get_db
+from app.db import AsyncSessionLocal, get_db
 from app.models.audit_log import AuditAction
 from app.models.dataset import Dataset, DatasetStatus
 from app.models.pii_classification import PiiClassification
@@ -244,9 +245,162 @@ async def get_context(
     )
 
 
+async def _run_scan_pipeline(scan_id: str, user_id: str) -> None:
+    """The actual scan pipeline (detection -> classification -> rules ->
+    gap detection -> risk scoring). Runs in a BackgroundTask with its own
+    DB session so POST /scan can return immediately instead of blocking
+    the request for however long detection takes."""
+    async with AsyncSessionLocal() as db:
+        dataset = (await db.execute(select(Dataset).where(Dataset.id == scan_id))).scalar_one()
+        context = (
+            await db.execute(select(ProcessingContext).where(ProcessingContext.scan_id == scan_id))
+        ).scalar_one()
+
+        # Clean up any prior scan's rows for this scan_id so re-running /scan
+        # doesn't duplicate detections/classifications/rules/findings.
+        old_detection_ids = (
+            (await db.execute(select(PiiDetection.id).where(PiiDetection.scan_id == scan_id))).scalars().all()
+        )
+        if old_detection_ids:
+            await db.execute(
+                delete(PiiClassification).where(PiiClassification.detection_id.in_(old_detection_ids))
+            )
+        await db.execute(delete(PiiDetection).where(PiiDetection.scan_id == scan_id))
+        await db.execute(delete(RuleEvaluationRow).where(RuleEvaluationRow.scan_id == scan_id))
+        await db.execute(delete(Finding).where(Finding.scan_id == scan_id))
+        await db.commit()
+
+        extension = os.path.splitext(dataset.filename)[1].lower()
+        # Offload the CPU-bound pandas/spaCy work to a thread so it doesn't
+        # block the event loop while other requests are being served.
+        df = await asyncio.to_thread(load_dataframe, dataset.file_path, extension)
+        detections = await asyncio.to_thread(detect_pii, df)
+
+        pii_categories: set[str] = set()
+        category_to_fields: dict[str, list[str]] = {}
+        detection_confidences: list[str] = []
+        for detection in detections:
+            detection_row = PiiDetection(
+                scan_id=scan_id,
+                field_name=detection.field_name,
+                masked_sample=detection.masked_sample,
+                detector_type=DetectorType(detection.detector_type),
+                confidence=Confidence(detection.confidence),
+            )
+            db.add(detection_row)
+            await db.flush()  # populate detection_row.id for the classification FK
+            detection_confidences.append(detection.confidence)
+
+            classification = classify_detection(
+                detector_type=detection.detector_type,
+                field_name=detection.field_name,
+                detection_confidence=detection.confidence,
+            )
+            pii_categories.add(classification.category)
+            category_to_fields.setdefault(classification.category, []).append(detection.field_name)
+            db.add(
+                PiiClassification(
+                    detection_id=detection_row.id,
+                    category=classification.category,
+                    subtype=classification.subtype,
+                    confidence=classification.confidence,
+                    source=classification.source,
+                )
+            )
+
+        context_dict = {
+            "purpose": context.purpose.value,
+            "consent_status": context.consent_status.value,
+            "retention_value": context.retention_value,
+            "retention_unit": context.retention_unit.value,
+            "access_scope": context.access_scope,
+            "encryption_enabled": context.encryption_enabled,
+            "access_control_enabled": context.access_control_enabled,
+            "notice_status": context.notice_status.value,
+        }
+        rule_evaluations = evaluate_rules(pii_categories, context_dict)
+        for evaluation in rule_evaluations:
+            db.add(
+                RuleEvaluationRow(
+                    scan_id=scan_id,
+                    rule_id=evaluation.rule_id,
+                    category=evaluation.category,
+                    severity=evaluation.severity,
+                    outcome=evaluation.outcome,
+                    evidence_field=evaluation.evidence_field,
+                )
+            )
+
+        fail_evaluations = [
+            {
+                "rule_id": e.rule_id,
+                "category": e.category,
+                "severity": e.severity,
+                "outcome": e.outcome,
+                "evidence_field": e.evidence_field,
+            }
+            for e in rule_evaluations
+            if e.outcome == "FAIL"
+        ]
+        rules_by_id = {rule["rule_id"]: rule for rule in load_rules()}
+        findings = generate_findings(fail_evaluations, category_to_fields, context_dict["purpose"], rules_by_id)
+        for finding in findings:
+            db.add(
+                Finding(
+                    scan_id=scan_id,
+                    category=finding.category,
+                    affected_fields=finding.affected_fields,
+                    purpose=finding.purpose,
+                    missing_control=finding.missing_control,
+                    rule_id=finding.rule_id,
+                    evidence=finding.evidence,
+                    severity=finding.severity,
+                    explanation=finding.explanation,
+                )
+            )
+
+        all_evaluations_for_risk = [
+            {"rule_id": e.rule_id, "severity": e.severity, "outcome": e.outcome} for e in rule_evaluations
+        ]
+        risk_result = compute_risk(
+            pii_categories, detection_confidences, all_evaluations_for_risk, context_dict["access_scope"]
+        )
+        existing_risk_score = await db.execute(select(RiskScore).where(RiskScore.scan_id == scan_id))
+        risk_score_row = existing_risk_score.scalar_one_or_none()
+        breakdown_json = [
+            {"factor": item.factor, "points_added": item.points_added, "reason": item.reason}
+            for item in risk_result.breakdown
+        ]
+        if risk_score_row is None:
+            db.add(
+                RiskScore(
+                    scan_id=scan_id,
+                    score=risk_result.score,
+                    band=risk_result.band,
+                    breakdown=breakdown_json,
+                )
+            )
+        else:
+            risk_score_row.score = risk_result.score
+            risk_score_row.band = risk_result.band
+            risk_score_row.breakdown = breakdown_json
+
+        dataset_row = (await db.execute(select(Dataset).where(Dataset.id == scan_id))).scalar_one()
+        dataset_row.status = DatasetStatus.scanned
+        await record_audit(
+            db,
+            user_id=user_id,
+            action=AuditAction.scan_run,
+            scan_id=scan_id,
+            details={"risk_score": risk_result.score, "risk_band": risk_result.band},
+        )
+        await db.commit()
+
+
 @router.post("/{scan_id}/scan", response_model=ScanAcceptedResponse, status_code=status.HTTP_202_ACCEPTED)
 async def run_scan(
     scan_id: str,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -263,138 +417,6 @@ async def run_scan(
     dataset.status = DatasetStatus.scanning
     await db.commit()
 
-    # Clean up any prior scan's rows for this scan_id so re-running /scan
-    # doesn't duplicate detections/classifications/rules/findings.
-    old_detection_ids = (
-        await db.execute(select(PiiDetection.id).where(PiiDetection.scan_id == scan_id))
-    ).scalars().all()
-    if old_detection_ids:
-        await db.execute(delete(PiiClassification).where(PiiClassification.detection_id.in_(old_detection_ids)))
-    await db.execute(delete(PiiDetection).where(PiiDetection.scan_id == scan_id))
-    await db.execute(delete(RuleEvaluationRow).where(RuleEvaluationRow.scan_id == scan_id))
-    await db.execute(delete(Finding).where(Finding.scan_id == scan_id))
-    await db.commit()
+    background_tasks.add_task(_run_scan_pipeline, scan_id, current_user.id)
 
-    extension = os.path.splitext(dataset.filename)[1].lower()
-    df = load_dataframe(dataset.file_path, extension)
-    detections = detect_pii(df)
-
-    pii_categories: set[str] = set()
-    category_to_fields: dict[str, list[str]] = {}
-    detection_confidences: list[str] = []
-    for detection in detections:
-        detection_row = PiiDetection(
-            scan_id=scan_id,
-            field_name=detection.field_name,
-            masked_sample=detection.masked_sample,
-            detector_type=DetectorType(detection.detector_type),
-            confidence=Confidence(detection.confidence),
-        )
-        db.add(detection_row)
-        await db.flush()  # populate detection_row.id for the classification FK
-        detection_confidences.append(detection.confidence)
-
-        classification = classify_detection(
-            detector_type=detection.detector_type,
-            field_name=detection.field_name,
-            detection_confidence=detection.confidence,
-        )
-        pii_categories.add(classification.category)
-        category_to_fields.setdefault(classification.category, []).append(detection.field_name)
-        db.add(
-            PiiClassification(
-                detection_id=detection_row.id,
-                category=classification.category,
-                subtype=classification.subtype,
-                confidence=classification.confidence,
-                source=classification.source,
-            )
-        )
-
-    context_dict = {
-        "purpose": context.purpose.value,
-        "consent_status": context.consent_status.value,
-        "retention_value": context.retention_value,
-        "retention_unit": context.retention_unit.value,
-        "access_scope": context.access_scope,
-        "encryption_enabled": context.encryption_enabled,
-        "access_control_enabled": context.access_control_enabled,
-        "notice_status": context.notice_status.value,
-    }
-    rule_evaluations = evaluate_rules(pii_categories, context_dict)
-    for evaluation in rule_evaluations:
-        db.add(
-            RuleEvaluationRow(
-                scan_id=scan_id,
-                rule_id=evaluation.rule_id,
-                category=evaluation.category,
-                severity=evaluation.severity,
-                outcome=evaluation.outcome,
-                evidence_field=evaluation.evidence_field,
-            )
-        )
-
-    fail_evaluations = [
-        {
-            "rule_id": e.rule_id,
-            "category": e.category,
-            "severity": e.severity,
-            "outcome": e.outcome,
-            "evidence_field": e.evidence_field,
-        }
-        for e in rule_evaluations
-        if e.outcome == "FAIL"
-    ]
-    rules_by_id = {rule["rule_id"]: rule for rule in load_rules()}
-    findings = generate_findings(fail_evaluations, category_to_fields, context_dict["purpose"], rules_by_id)
-    for finding in findings:
-        db.add(
-            Finding(
-                scan_id=scan_id,
-                category=finding.category,
-                affected_fields=finding.affected_fields,
-                purpose=finding.purpose,
-                missing_control=finding.missing_control,
-                rule_id=finding.rule_id,
-                evidence=finding.evidence,
-                severity=finding.severity,
-                explanation=finding.explanation,
-            )
-        )
-
-    all_evaluations_for_risk = [
-        {"rule_id": e.rule_id, "severity": e.severity, "outcome": e.outcome} for e in rule_evaluations
-    ]
-    risk_result = compute_risk(
-        pii_categories, detection_confidences, all_evaluations_for_risk, context_dict["access_scope"]
-    )
-    existing_risk_score = await db.execute(select(RiskScore).where(RiskScore.scan_id == scan_id))
-    risk_score_row = existing_risk_score.scalar_one_or_none()
-    breakdown_json = [
-        {"factor": item.factor, "points_added": item.points_added, "reason": item.reason}
-        for item in risk_result.breakdown
-    ]
-    if risk_score_row is None:
-        db.add(
-            RiskScore(
-                scan_id=scan_id,
-                score=risk_result.score,
-                band=risk_result.band,
-                breakdown=breakdown_json,
-            )
-        )
-    else:
-        risk_score_row.score = risk_result.score
-        risk_score_row.band = risk_result.band
-        risk_score_row.breakdown = breakdown_json
-
-    dataset.status = DatasetStatus.scanned
-    await record_audit(
-        db,
-        user_id=current_user.id,
-        action=AuditAction.scan_run,
-        scan_id=scan_id,
-        details={"risk_score": risk_result.score, "risk_band": risk_result.band},
-    )
-    await db.commit()
     return ScanAcceptedResponse(scan_id=dataset.id, status=dataset.status)

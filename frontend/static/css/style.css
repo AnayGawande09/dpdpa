@@ -1,4 +1,16 @@
 * { box-sizing: border-box; }
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #cfd8ff;
+  border-top-color: #2454ff;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 body {
   font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background: #f4f6f8;
@@ -56,3 +68,13 @@ th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; font
   background: #eef1ff;
   color: #2454ff;
 }
+.how-it-works { background: #fafbfc; }
+.pipeline-steps {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.6;
+}
+.pipeline-steps li { margin-bottom: 8px; }
+.pipeline-steps strong { color: #2454ff; }

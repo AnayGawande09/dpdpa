@@ -27,7 +27,7 @@ async def _upload_and_scan(client, token, file_path):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert scan_res.status_code == 202
-    assert scan_res.json()["status"] == "scanned"
+    assert scan_res.json()["status"] == "scanning"  # runs in a background task, not inline
     return scan_id
 
 

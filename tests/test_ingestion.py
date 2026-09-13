@@ -123,4 +123,12 @@ async def test_scan_runs_detection_and_completes(client, auth_token):
         headers={"Authorization": f"Bearer {auth_token}"},
     )
     assert res.status_code == 202
-    assert res.json()["status"] == "scanned"
+    assert res.json()["status"] == "scanning"  # runs in a background task, not inline
+
+    # the background task runs to completion within the same ASGI call in
+    # tests, so by the time we poll GET the dataset is already scanned
+    poll_res = await client.get(
+        f"/datasets/{scan_id}",
+        headers={"Authorization": f"Bearer {auth_token}"},
+    )
+    assert poll_res.json()["status"] == "scanned"
