@@ -359,3 +359,19 @@ backend startup).
   for removal — verified live against both a Marketing-purpose scan
   (flagged `pan_num`/`aadhaar_num`/`ip_addr` as unnecessary) and an
   Other-purpose scan (blank necessary list, every field flagged).
+- Redesigned the frontend as an enterprise audit-grade UI (`design-system.css`,
+  shared token palette/typography/shape system): a "New Compliance Scan"
+  intake page (drag-and-drop upload, step 1/2 layout, "How the Analyzer
+  Works" and "Regulatory Baseline" panels) and a "Compliance Dashboard"
+  with a circular risk gauge, KPI tiles (risk score, rule outcomes, PII
+  fields detected, remediation urgency), an All/Failed/Passed-filterable
+  findings table sourced from `GET /rules` (now enriched with each rule's
+  `requirement`/`remediation` text), a weighted risk-breakdown bar list, a
+  real audit-trail timeline, and scan history — all wired to the existing
+  API with no mock data, plus a working re-scan button. Deliberately left
+  out a couple of things from the reference mockup that weren't real:
+  fabricated SHA-256 audit-hash claims (no such integrity chain exists)
+  and a rule count that didn't match our actual library. Verified with a
+  full headless-browser pass on both a "bad" and a "good" scan: zero
+  console/JS errors throughout upload → context → scan → dashboard →
+  tab-filtering → report download → re-scan.

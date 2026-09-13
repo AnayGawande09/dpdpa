@@ -7,3 +7,5 @@ class RuleEvaluationResult(BaseModel):
     severity: str
     outcome: str
     evidence_field: str
+    requirement: str
+    remediation: str

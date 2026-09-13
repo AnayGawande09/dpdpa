@@ -3,106 +3,173 @@
 <head>
   <meta charset="UTF-8" />
   <title>DPDP Compliance Dashboard</title>
-  <link rel="stylesheet" href="static/css/dashboard.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="static/css/design-system.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <div class="topbar">
-    <h1>DPDP Compliance Analyzer — Dashboard</h1>
-    <span class="scan-id" id="topbar-scan-id"></span>
+  <div class="topnav">
+    <div class="topnav-left">
+      <div class="topnav-brand-icon">🛡️</div>
+      <div>
+        <div class="topnav-title">DPDP Compliance Analyzer</div>
+        <div class="topnav-subtitle">Enterprise Privacy Governance</div>
+      </div>
+    </div>
+    <div class="topnav-tabs">
+      <a href="index.html">Data Intake &amp; Scan</a>
+      <a href="dashboard.html" class="active">Compliance Dashboard</a>
+      <a href="#findings-card">Rule Engine</a>
+      <a href="#audit-card">Audit Logs</a>
+      <a href="#report-card">Reports</a>
+    </div>
+    <div class="topnav-right">
+      <div id="topnav-user" class="topnav-user" hidden>
+        <div class="topnav-user-avatar" id="topnav-user-initial">?</div>
+        <div>
+          <div class="topnav-user-name" id="topnav-user-email">—</div>
+          <div class="topnav-user-role">Signed in</div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div id="alert-banner" class="alert-banner" hidden>
-    <strong id="alert-title"></strong>
-    <span id="alert-body"></span>
+  <div class="breadcrumb-strip">
+    <span>Home / Compliance Dashboard</span>
+    <span id="topbar-scan-id" class="mono">—</span>
   </div>
 
-  <div class="wrap">
-    <div class="panel full" id="no-scan-message" hidden>
+  <div class="shell">
+    <div id="alert-banner" class="alert-banner" hidden>
+      <strong id="alert-title"></strong>
+      <span id="alert-body"></span>
+    </div>
+
+    <div id="no-scan-message" class="card" hidden>
       <p class="empty-state">No scan selected. Pick one from Scan History below, or append
         <code>?scan_id=&lt;id&gt;</code> to this page's URL.</p>
     </div>
 
-    <div class="panel">
-      <h2>PII Summary</h2>
-      <canvas id="pii-summary-chart"></canvas>
-      <p class="empty-state" id="pii-summary-empty" hidden>No PII detected for this scan.</p>
-    </div>
-
-    <div class="panel">
-      <h2>Risk Score</h2>
-      <div class="score-row">
-        <span class="score-value" id="risk-score">—</span>
-        <span class="badge" id="risk-band"></span>
+    <div id="scan-header" class="page-header" hidden>
+      <div>
+        <h1 id="dataset-title">Scan Summary</h1>
+        <div class="meta">
+          <span id="scan-meta-line"></span>
+        </div>
       </div>
-      <canvas id="risk-breakdown-chart"></canvas>
-      <p class="empty-state" id="risk-empty" hidden>Risk score not yet computed for this scan.</p>
-    </div>
-
-    <div class="panel">
-      <h2>Compliance Rule Outcomes</h2>
-      <div class="rule-counts">
-        <div class="rule-count"><div class="num" id="rules-pass-count">0</div><div class="label">PASS</div></div>
-        <div class="rule-count"><div class="num" id="rules-fail-count">0</div><div class="label">FAIL</div></div>
-        <div class="rule-count"><div class="num" id="rules-unknown-count">0</div><div class="label">UNKNOWN</div></div>
+      <div class="header-actions">
+        <button id="rescan-button" class="btn btn-ghost">↻ Re-scan with Updated Rules</button>
+        <button id="download-report-button" class="btn btn-primary" style="width: auto;">⬇ Export Compliance Report (PDF)</button>
       </div>
     </div>
+    <p id="report-status" class="success-text" hidden></p>
+    <p id="report-error" class="error-text" hidden></p>
 
-    <div class="panel">
-      <h2>Findings</h2>
-      <p class="empty-state" id="findings-empty" hidden>No findings for this scan.</p>
-      <table id="findings-table" hidden>
-        <thead>
-          <tr>
-            <th data-sort="severity">Severity ▾</th>
-            <th data-sort="category">Category</th>
-            <th data-sort="rule_id">Rule</th>
-          </tr>
-        </thead>
-        <tbody id="findings-tbody"></tbody>
-      </table>
+    <div class="grid grid-4" style="margin-bottom: 1.25rem;">
+      <div class="card">
+        <div class="kpi-label">Overall Risk Score</div>
+        <div class="gauge-wrap">
+          <div class="gauge" id="risk-gauge">—</div>
+          <div>
+            <span class="chip" id="risk-band">—</span>
+            <div class="kpi-sub" id="risk-delta"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Rule Outcomes</div>
+        <div class="kpi-value" id="rules-total">0</div>
+        <div class="kpi-sub" id="rules-pass-rate">0% pass rate</div>
+        <div class="kpi-sub" style="margin-top:6px;">
+          <span id="rules-pass-count">0</span> PASS &middot;
+          <span id="rules-fail-count">0</span> FAIL &middot;
+          <span id="rules-unknown-count">0</span> UNKNOWN
+        </div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">PII Fields Detected</div>
+        <div class="kpi-value" id="pii-total">0</div>
+        <div class="kpi-sub" id="pii-category-count">across 0 categories</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Remediation Urgency</div>
+        <div class="kpi-value" id="urgent-count">0</div>
+        <div class="kpi-sub">High/Critical priority findings</div>
+      </div>
     </div>
 
-    <div class="panel">
-      <h2>Report</h2>
-      <button id="download-report-button">Download Report</button>
-      <p id="report-status" class="success" hidden></p>
-      <p id="report-error" class="error" hidden></p>
+    <div class="grid grid-2" style="margin-bottom: 1.25rem;">
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">PII Sensitivity &amp; Category Breakdown</h2></div>
+        <canvas id="pii-summary-chart"></canvas>
+        <p class="empty-state" id="pii-summary-empty" hidden>No PII detected for this scan.</p>
+      </div>
+
+      <div class="card" id="findings-card">
+        <div class="card-header"><h2 class="card-title">Compliance Findings &amp; Statutory Gap Analysis</h2></div>
+        <div class="tabs">
+          <button class="tab-btn active" data-filter="ALL">All</button>
+          <button class="tab-btn" data-filter="FAIL">Failed</button>
+          <button class="tab-btn" data-filter="PASS">Passed</button>
+        </div>
+        <div style="max-height: 420px; overflow-y: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="severity">Severity</th>
+                <th>Rule ID</th>
+                <th>Category</th>
+                <th>Requirement &amp; Gap</th>
+                <th>Recommended Action</th>
+              </tr>
+            </thead>
+            <tbody id="findings-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <div class="panel">
-      <h2>Audit Log</h2>
-      <table>
-        <thead>
-          <tr><th>Action</th><th>Scan</th><th>When</th></tr>
-        </thead>
-        <tbody id="audit-tbody"></tbody>
-      </table>
-      <p class="empty-state" id="audit-empty" hidden>No audit entries yet.</p>
+    <div class="grid grid-2" style="margin-bottom: 1.25rem;">
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Risk Score Component Breakdown</h2></div>
+        <p class="card-subtitle">Weighted contributions to the composite 0–100 score</p>
+        <div id="risk-breakdown-list" style="margin-top: 10px;"></div>
+        <p class="empty-state" id="risk-empty" hidden>Risk score not yet computed for this scan.</p>
+      </div>
+
+      <div class="card" id="audit-card">
+        <div class="card-header"><h2 class="card-title">Audit Trail &amp; Scan Telemetry</h2></div>
+        <p class="card-subtitle">Every logged action for this scan</p>
+        <ul class="timeline" id="audit-timeline" style="margin-top: 10px;"></ul>
+        <p class="empty-state" id="audit-empty" hidden>No audit entries yet.</p>
+      </div>
     </div>
 
-    <div class="panel full">
-      <h2>Scan History</h2>
-      <table>
+    <div class="card" id="report-card" style="margin-bottom: 1.25rem;">
+      <div class="card-header"><h2 class="card-title">Scan History &amp; Workspace Repositories</h2></div>
+      <p class="card-subtitle">Recent uploads and their scan status</p>
+      <table class="data-table">
         <thead>
-          <tr><th>Filename</th><th>Uploaded</th><th>Status</th><th></th></tr>
+          <tr><th>Dataset Name</th><th>Uploaded</th><th>Status</th><th></th></tr>
         </thead>
         <tbody id="history-tbody"></tbody>
       </table>
       <div class="pagination">
-        <button id="history-prev">Previous</button>
+        <button id="history-prev" class="btn btn-ghost btn-sm">Previous</button>
         <span id="history-page-label"></span>
-        <button id="history-next">Next</button>
+        <button id="history-next" class="btn btn-ghost btn-sm">Next</button>
       </div>
     </div>
 
-    <p class="disclaimer full">
+    <p class="footer-disclaimer">
       This dashboard reflects automated assessment findings against a configurable rule set based on the
-      DPDP Act 2023 and DPDP Rules 2025. It is not legal advice and does not constitute a definitive
-      compliance determination.
+      Digital Personal Data Protection (DPDP) Act 2023 and DPDP Rules 2025. It is not legal advice and does
+      not constitute a definitive compliance determination.
     </p>
   </div>
 
+  <script src="static/js/shared.js"></script>
   <script src="static/js/dashboard.js"></script>
 </body>
 </html>

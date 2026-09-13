@@ -1,16 +1,6 @@
-const API_BASE = "http://localhost:8000";
-
-function getToken() {
-  return localStorage.getItem("dpdp_token");
-}
-
-function setToken(token) {
-  localStorage.setItem("dpdp_token", token);
-}
-
-function clearToken() {
-  localStorage.removeItem("dpdp_token");
-}
+// Requires static/js/shared.js to be loaded first (getToken, setToken,
+// clearToken, setLoggedInEmail, getLoggedInEmail, show, hide, showError,
+// renderTopnavUser, API_BASE).
 
 // Call after every authenticated fetch. If the token was rejected (expired,
 // or referencing a user that no longer exists — e.g. after a dev DB reset),
@@ -19,10 +9,10 @@ function clearToken() {
 function handleAuthFailure(res) {
   if (res.status !== 401) return false;
   clearToken();
-  document.getElementById("upload-section").classList.add("hidden");
-  document.getElementById("context-section").classList.add("hidden");
-  const loginSection = document.getElementById("login-section");
-  loginSection.classList.remove("hidden");
+  hide(document.getElementById("main-shell"));
+  show(document.getElementById("login-shell"));
+  const userBlock = document.getElementById("topnav-user");
+  if (userBlock) userBlock.hidden = true;
   showError(
     document.getElementById("login-error"),
     "Your session is no longer valid — please log in again."
@@ -30,28 +20,16 @@ function handleAuthFailure(res) {
   return true;
 }
 
-function showError(el, message) {
-  el.textContent = message;
-  el.classList.remove("hidden");
-}
-
-function hide(el) {
-  el.classList.add("hidden");
-}
-
-function show(el) {
-  el.classList.remove("hidden");
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   const loginForm = document.getElementById("login-form");
   const loginError = document.getElementById("login-error");
-  const loginSection = document.getElementById("login-section");
-  const uploadSection = document.getElementById("upload-section");
+  const loginShell = document.getElementById("login-shell");
+  const mainShell = document.getElementById("main-shell");
 
   if (getToken()) {
-    hide(loginSection);
-    show(uploadSection);
+    hide(loginShell);
+    show(mainShell);
+    renderTopnavUser();
   }
 
   loginForm.addEventListener("submit", async (e) => {
@@ -76,13 +54,17 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       const data = await res.json();
       setToken(data.access_token);
-      hide(loginSection);
-      show(uploadSection);
+      setLoggedInEmail(email);
+      hide(loginShell);
+      show(mainShell);
+      renderTopnavUser();
     } catch (err) {
       showError(loginError, "Could not reach the server.");
     }
   });
 
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("file-input");
   const uploadForm = document.getElementById("upload-form");
   const uploadError = document.getElementById("upload-error");
   const uploadResult = document.getElementById("upload-result");
@@ -97,10 +79,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setScanStatus(text, spinning) {
     scanStatusText.textContent = text;
-    scanSpinner.classList.toggle("hidden", !spinning);
+    scanSpinner.hidden = !spinning;
   }
 
   let currentScanId = null;
+
+  dropzone.addEventListener("click", () => fileInput.click());
+  dropzone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropzone.classList.add("dragover");
+  });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("dragover");
+    if (e.dataTransfer.files.length) {
+      fileInput.files = e.dataTransfer.files;
+    }
+  });
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length) {
+      dropzone.querySelector("div:nth-child(2)").innerHTML = `<strong>${fileInput.files[0].name}</strong> selected — click Upload`;
+    }
+  });
 
   function contextFieldsFromForm() {
     return {
@@ -143,7 +144,6 @@ document.addEventListener("DOMContentLoaded", () => {
     hide(uploadError);
     hide(uploadResult);
     hide(contextSection);
-    const fileInput = document.getElementById("file-input");
     if (!fileInput.files.length) return;
 
     const formData = new FormData();
@@ -166,7 +166,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       document.getElementById("result-filename").textContent = data.filename;
       document.getElementById("result-rowcount").textContent = data.row_count;
-      document.getElementById("result-columns").textContent = data.column_names.join(", ");
+      document.getElementById("result-colcount").textContent = data.column_names.length;
+      document.getElementById("result-columns").innerHTML = data.column_names
+        .map((c) => `<span class="field-chip">${c}</span>`)
+        .join("");
       show(uploadResult);
 
       show(contextSection);

@@ -3,106 +3,202 @@
 <head>
   <meta charset="UTF-8" />
   <title>DPDP Compliance Analyzer</title>
-  <link rel="stylesheet" href="static/css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="static/css/design-system.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>DPDP Compliance Analyzer</h1>
-    <p class="subtitle">Upload a dataset to check for potential compliance gaps.</p>
-
-    <div id="login-section" class="card">
-      <h2>Log in</h2>
-      <form id="login-form">
-        <label for="email">Email</label>
-        <input type="email" id="email" required value="admin@example.com" />
-        <label for="password">Password</label>
-        <input type="password" id="password" required value="DemoPass123!" />
-        <button type="submit">Log in</button>
-      </form>
-      <p id="login-error" class="error hidden"></p>
-    </div>
-
-    <div id="upload-section" class="card hidden">
-      <h2>Connect a data source</h2>
-      <form id="upload-form">
-        <label for="file-input">Upload file (csv, json, txt, xlsx)</label>
-        <input type="file" id="file-input" accept=".csv,.json,.txt,.xlsx" required />
-        <button type="submit">Upload</button>
-      </form>
-      <button class="secondary" disabled title="Coming soon">Connect live source (coming soon)</button>
-
-      <div id="upload-result" class="hidden">
-        <p><strong>File:</strong> <span id="result-filename"></span></p>
-        <p><strong>Row count:</strong> <span id="result-rowcount"></span></p>
-        <p><strong>Columns:</strong> <span id="result-columns"></span></p>
+  <div class="topnav">
+    <div class="topnav-left">
+      <div class="topnav-brand-icon">🛡️</div>
+      <div>
+        <div class="topnav-title">DPDP Compliance Analyzer</div>
+        <div class="topnav-subtitle">Enterprise Privacy Governance</div>
       </div>
-      <p id="upload-error" class="error hidden"></p>
     </div>
-
-    <div id="context-section" class="card hidden">
-      <h2>Processing context</h2>
-      <p class="subtitle">Required before scanning — how is this data actually used?</p>
-      <form id="context-form">
-        <label for="purpose">Purpose</label>
-        <select id="purpose">
-          <option>Marketing</option>
-          <option>Analytics</option>
-          <option>Customer Support</option>
-          <option>Legal/Compliance</option>
-          <option>Other</option>
-        </select>
-
-        <label for="consent-status">Consent status</label>
-        <select id="consent-status">
-          <option>Available</option>
-          <option>Not available</option>
-          <option>Unknown</option>
-        </select>
-
-        <label for="retention-value">Retention period</label>
-        <div style="display:flex; gap:8px;">
-          <input type="number" id="retention-value" min="0" value="5" style="width:80px;" />
-          <select id="retention-unit" style="width:auto;">
-            <option>days</option>
-            <option>months</option>
-            <option>years</option>
-          </select>
+    <div class="topnav-tabs">
+      <a href="index.html" class="active">Data Intake &amp; Scan</a>
+      <a href="dashboard.html">Compliance Dashboard</a>
+      <a href="dashboard.html#findings-card">Rule Engine</a>
+      <a href="dashboard.html#audit-card">Audit Logs</a>
+      <a href="dashboard.html#report-card">Reports</a>
+    </div>
+    <div class="topnav-right">
+      <div id="topnav-user" class="topnav-user" hidden>
+        <div class="topnav-user-avatar" id="topnav-user-initial">?</div>
+        <div>
+          <div class="topnav-user-name" id="topnav-user-email">—</div>
+          <div class="topnav-user-role">Signed in</div>
         </div>
-
-        <label for="access-scope">Access scope (who/what can access this data)</label>
-        <input type="text" id="access-scope" placeholder="e.g. Marketing, Sales" />
-
-        <label><input type="checkbox" id="encryption-enabled" /> Encryption enabled</label>
-        <label><input type="checkbox" id="access-control-enabled" /> Access control enabled</label>
-
-        <label for="notice-status">Notice status</label>
-        <select id="notice-status">
-          <option>Available</option>
-          <option>Missing</option>
-        </select>
-
-        <button type="submit">Save context</button>
-      </form>
-      <p id="context-error" class="error hidden"></p>
-      <p id="context-success" class="success hidden"></p>
-
-      <button id="scan-button" disabled>Run Compliance Scan</button>
-      <p id="scan-status" class="success hidden"><span id="scan-spinner" class="spinner hidden"></span><span id="scan-status-text"></span></p>
-      <p id="dashboard-link" class="hidden"><a id="dashboard-link-anchor" href="#">View Dashboard →</a></p>
-    </div>
-
-    <div class="card how-it-works">
-      <h2>How this works</h2>
-      <ol class="pipeline-steps">
-        <li><strong>Detection</strong> — regex patterns, spaCy NER, and column-name heuristics scan every field for likely PII (email, phone, Aadhaar-like, PAN-like, IP, names, locations).</li>
-        <li><strong>Classification</strong> — each detection is mapped to a DPDP taxonomy category (Personal Identifier, Contact Information, Location, Government Identifier, Financial Information, Online Identifier).</li>
-        <li><strong>Rule Engine</strong> — the detected PII and your declared processing context (purpose, consent, retention, security controls) are evaluated against a versioned set of DPDP Act 2023 / DPDP Rules 2025 rules.</li>
-        <li><strong>Gap Detection</strong> — every failed rule becomes a finding: which fields are affected, what control is missing, and a recommended action.</li>
-        <li><strong>Risk Score</strong> — findings and PII sensitivity are combined into an explainable 0–100 score with a fully traceable breakdown.</li>
-      </ol>
+      </div>
     </div>
   </div>
 
+  <div class="breadcrumb-strip">
+    <span>Home / New Compliance Scan</span>
+    <span>Rules referenced: DPDP Act 2023 &middot; DPDP Rules 2025 (phased commencement)</span>
+  </div>
+
+  <div class="shell" style="max-width: 640px;" id="login-shell">
+    <div class="card" id="login-section">
+      <div class="card-header"><h2 class="card-title">Log in</h2></div>
+      <form id="login-form">
+        <label class="field-label" for="email">Email</label>
+        <input type="email" id="email" required value="admin@example.com" />
+        <label class="field-label" for="password">Password</label>
+        <input type="password" id="password" required value="DemoPass123!" />
+        <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Log in</button>
+      </form>
+      <p id="login-error" class="error-text" hidden></p>
+    </div>
+  </div>
+
+  <div class="shell" id="main-shell" hidden>
+    <div class="page-header">
+      <div>
+        <h1>Configure &amp; Launch DPDP Scan</h1>
+        <div class="meta">Upload a dataset, declare its processing context, and generate an explainable compliance gap assessment.</div>
+      </div>
+    </div>
+
+    <div class="grid grid-3">
+      <div class="span-2" style="display: flex; flex-direction: column; gap: 1.25rem;">
+
+        <div class="card" id="upload-section">
+          <div class="step-label">Step 1 / 2</div>
+          <h2 class="card-title" style="margin-top: 6px;">Connect Data Source</h2>
+          <p class="card-subtitle">Supply a tabular file for PII detection and telemetry analysis.</p>
+
+          <form id="upload-form">
+            <div class="dropzone" id="dropzone">
+              <div class="dz-icon">⬆️</div>
+              <div><strong>Drag and drop a file here</strong>, or click to browse</div>
+              <div class="dz-hint">Supported: CSV, JSON, TXT, XLSX &middot; up to the configured size limit</div>
+              <input type="file" id="file-input" accept=".csv,.json,.txt,.xlsx" required hidden />
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top: 12px;">Upload</button>
+          </form>
+
+          <div id="upload-result" class="file-info-card" hidden>
+            <div>
+              <div style="font-weight: 600;" id="result-filename"></div>
+              <div style="font-size: 12px; color: var(--on-surface-variant);">
+                <span id="result-rowcount"></span> rows &middot; <span id="result-colcount"></span> columns detected
+              </div>
+              <div id="result-columns" style="margin-top: 8px;"></div>
+            </div>
+          </div>
+          <p id="upload-error" class="error-text" hidden></p>
+
+          <button class="btn btn-ghost btn-sm" disabled title="Not available in this build" style="margin-top: 14px;">
+            🔒 Connect Live Database / Cloud Source (S3, PostgreSQL, Snowflake) — Coming soon
+          </button>
+        </div>
+
+        <div class="card" id="context-section" hidden>
+          <div class="step-label">Step 2 / 2 &middot; Mandatory</div>
+          <h2 class="card-title" style="margin-top: 6px;">Processing Context &amp; Lawful Basis</h2>
+          <p class="card-subtitle">Required before scanning — how is this data actually used?</p>
+
+          <form id="context-form">
+            <label class="field-label" for="purpose">Declared processing purpose</label>
+            <select id="purpose">
+              <option>Marketing</option>
+              <option>Analytics</option>
+              <option>Customer Support</option>
+              <option>Legal/Compliance</option>
+              <option>Other</option>
+            </select>
+
+            <label class="field-label" for="consent-status">Consent record status</label>
+            <select id="consent-status">
+              <option>Available</option>
+              <option>Not available</option>
+              <option>Unknown</option>
+            </select>
+
+            <label class="field-label" for="retention-value">Retention horizon</label>
+            <div style="display:flex; gap:8px;">
+              <input type="number" id="retention-value" min="0" value="5" style="width:100px;" />
+              <select id="retention-unit" style="width:auto;">
+                <option>days</option>
+                <option>months</option>
+                <option>years</option>
+              </select>
+            </div>
+
+            <label class="field-label" for="access-scope">Access scope (who/what can access this data)</label>
+            <input type="text" id="access-scope" placeholder="e.g. Marketing, Sales, or a grievance contact" />
+
+            <label class="field-label" for="notice-status">Notice to data principals</label>
+            <select id="notice-status">
+              <option>Available</option>
+              <option>Missing</option>
+            </select>
+
+            <div class="checkbox-row">
+              <input type="checkbox" id="encryption-enabled" />
+              <div><label for="encryption-enabled" class="cb-label">Encryption at rest &amp; in transit</label></div>
+            </div>
+            <div class="checkbox-row">
+              <input type="checkbox" id="access-control-enabled" />
+              <div><label for="access-control-enabled" class="cb-label">Access control implemented</label></div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-top: 18px;">Save context</button>
+          </form>
+          <p id="context-error" class="error-text" hidden></p>
+          <p id="context-success" class="success-text" hidden></p>
+
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+            <button id="scan-button" class="btn btn-dark" disabled>Run DPDP Compliance Scan →</button>
+            <p id="scan-status" hidden><span id="scan-spinner" class="spinner" hidden></span><span id="scan-status-text"></span></p>
+            <p id="dashboard-link" hidden><a id="dashboard-link-anchor" class="link-text" href="#">View Compliance Dashboard →</a></p>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+        <div class="card">
+          <h2 class="card-title">How the Analyzer Works</h2>
+          <p class="card-subtitle">Statutory validation pipeline lifecycle</p>
+          <ol style="padding-left: 18px; font-size: 13px; color: var(--on-surface); line-height: 1.6; margin: 10px 0 0;">
+            <li style="margin-bottom: 10px;"><strong style="color:var(--secondary);">Detection</strong><br/><span style="color:var(--on-surface-variant);">Regex patterns, spaCy NER, and column-name heuristics scan every field for likely PII.</span></li>
+            <li style="margin-bottom: 10px;"><strong style="color:var(--secondary);">Classification</strong><br/><span style="color:var(--on-surface-variant);">Each detection is mapped to a DPDP taxonomy category.</span></li>
+            <li style="margin-bottom: 10px;"><strong style="color:var(--secondary);">Rule Engine</strong><br/><span style="color:var(--on-surface-variant);">Detected PII and your declared context are evaluated against a versioned set of DPDP Act 2023 / DPDP Rules 2025 rules.</span></li>
+            <li style="margin-bottom: 10px;"><strong style="color:var(--secondary);">Gap Detection</strong><br/><span style="color:var(--on-surface-variant);">Every failed rule becomes a finding — affected fields, missing control, recommended action.</span></li>
+            <li><strong style="color:var(--secondary);">Risk Score</strong><br/><span style="color:var(--on-surface-variant);">Findings and PII sensitivity combine into an explainable 0–100 score with a fully traceable breakdown.</span></li>
+          </ol>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Regulatory Baseline</h2>
+          <p class="card-subtitle">Primary sources this assessment is evaluated against</p>
+          <div style="font-size: 13px; margin-top: 8px;">
+            <div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom: 1px solid var(--border-light);">
+              <span>DPDP Act 2023 (India)</span>
+              <span class="chip neutral">Referenced</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding: 6px 0;">
+              <span>DPDP Rules 2025</span>
+              <span class="chip neutral">Phased commencement</span>
+            </div>
+          </div>
+          <p style="font-size: 11px; color: var(--on-surface-variant); margin-top: 10px;">
+            Most substantive obligations (Rules 3, 5–16, 22–23) take effect 18 months after the
+            13 Nov 2025 notification. See <code>SCOPE.md</code> for citation guardrails.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="footer-disclaimer">
+    This tool produces an automated assessment against a configurable rule set based on the DPDP Act 2023 and
+    DPDP Rules 2025. It is not legal advice and does not constitute a definitive compliance determination.
+  </p>
+
+  <script src="static/js/shared.js"></script>
   <script src="static/js/app.js"></script>
 </body>
 </html>
