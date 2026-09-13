@@ -177,6 +177,12 @@ try {
 }
 ```
 
+**Check rule evaluations after a scan (Phase 5):**
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/datasets/$SCAN_ID/rules" -Headers $Headers | Format-Table
+```
+
 For later phases: GET/POST-without-a-file endpoints follow the same
 `Invoke-RestMethod -Uri ... -Headers $Headers` pattern shown above (add
 `-Method Post -Body (... | ConvertTo-Json) -ContentType "application/json"`
@@ -206,3 +212,9 @@ end-to-end walkthrough under 3 minutes.)_
   retention, access scope, encryption, access control, notice), a hard
   gate so `/scan` returns 400 without it, pre-filled defaults, and a
   frontend context form that blocks scanning until saved.
+- Phase 5 complete: a versioned rule library (`app/rules/rules.json`, 7
+  rules across all 6 DPDP categories, citations grounded in confirmed
+  DPDP Act 2023 section numbers) evaluated by a fully generic engine —
+  editing rules.json changes `/rules` output with zero code changes
+  (verified by hand and in tests) — wired into `/scan`, plus
+  `GET /datasets/{scan_id}/rules`.

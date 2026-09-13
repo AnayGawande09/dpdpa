@@ -13,9 +13,11 @@ from app.models.dataset import Dataset, DatasetStatus
 from app.models.pii_classification import PiiClassification
 from app.models.pii_detection import Confidence, DetectorType, PiiDetection
 from app.models.processing_context import ProcessingContext
+from app.models.rule_evaluation import RuleEvaluationRow
 from app.models.user import User
 from app.pipeline.classification import classify_detection
 from app.pipeline.detection import detect_pii
+from app.pipeline.rules_engine import evaluate_rules
 from app.routers.auth import get_current_user
 from app.schemas.context import DEFAULT_CONTEXT, ProcessingContextIn, ProcessingContextOut
 from app.schemas.dataset import DatasetResponse, ScanAcceptedResponse, UploadResponse
@@ -221,6 +223,7 @@ async def run_scan(
     df = load_dataframe(dataset.file_path, extension)
     detections = detect_pii(df)
 
+    pii_categories: set[str] = set()
     for detection in detections:
         detection_row = PiiDetection(
             scan_id=scan_id,
@@ -237,6 +240,7 @@ async def run_scan(
             field_name=detection.field_name,
             detection_confidence=detection.confidence,
         )
+        pii_categories.add(classification.category)
         db.add(
             PiiClassification(
                 detection_id=detection_row.id,
@@ -244,6 +248,28 @@ async def run_scan(
                 subtype=classification.subtype,
                 confidence=classification.confidence,
                 source=classification.source,
+            )
+        )
+
+    context_dict = {
+        "purpose": context.purpose.value,
+        "consent_status": context.consent_status.value,
+        "retention_value": context.retention_value,
+        "retention_unit": context.retention_unit.value,
+        "access_scope": context.access_scope,
+        "encryption_enabled": context.encryption_enabled,
+        "access_control_enabled": context.access_control_enabled,
+        "notice_status": context.notice_status.value,
+    }
+    for evaluation in evaluate_rules(pii_categories, context_dict):
+        db.add(
+            RuleEvaluationRow(
+                scan_id=scan_id,
+                rule_id=evaluation.rule_id,
+                category=evaluation.category,
+                severity=evaluation.severity,
+                outcome=evaluation.outcome,
+                evidence_field=evaluation.evidence_field,
             )
         )
 

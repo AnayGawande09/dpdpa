@@ -1,1 +1,79 @@
-[]
+[
+  {
+    "rule_id": "DPDP-R001",
+    "source": "DPDP Act 2023",
+    "version": "2023",
+    "effective_date": "2027-05-13",
+    "category": "Consent",
+    "condition": "consent_status_available",
+    "severity": "HIGH",
+    "requirement": "Personal data may only be processed on the basis of the data principal's free, specific, informed, unconditional and unambiguous consent, or an applicable legitimate use (DPDP Act 2023, Section 6 — Consent). A data fiduciary must be able to demonstrate that consent was obtained.",
+    "remediation": "Record and retain evidence of consent (or the applicable Section 7 legitimate-use ground) for this dataset's declared processing purpose before continuing to process it."
+  },
+  {
+    "rule_id": "DPDP-R002",
+    "source": "DPDP Act 2023",
+    "version": "2023",
+    "effective_date": "2027-05-13",
+    "category": "Purpose Limitation",
+    "condition": "purpose_is_specific",
+    "severity": "MEDIUM",
+    "requirement": "Personal data must be processed only for the specific, lawful purpose for which it was collected and consented to (DPDP Act 2023, Section 4 — Grounds for processing personal data; Section 6 — Consent). A purpose recorded as \"Other\" without further specificity does not satisfy this obligation.",
+    "remediation": "Replace the generic \"Other\" purpose with a specific, documented processing purpose that matches what was actually disclosed to data principals."
+  },
+  {
+    "rule_id": "DPDP-R003",
+    "source": "DPDP Act 2023",
+    "version": "2023",
+    "effective_date": "2027-05-13",
+    "category": "Retention",
+    "condition": "retention_within_limit",
+    "severity": "HIGH",
+    "requirement": "A data fiduciary must erase personal data once the specified purpose is no longer being served and retention is no longer necessary for legal compliance (DPDP Act 2023, general obligation under Section 8 — General obligations of Data Fiduciary). A retention period undefined or exceeding roughly 3 years without justification is treated as excessive for the purposes of this assessment.",
+    "remediation": "Define a retention period proportionate to the declared purpose (this assessment flags retention beyond ~3 years as excessive) and implement erasure once that period lapses."
+  },
+  {
+    "rule_id": "DPDP-R004",
+    "source": "DPDP Act 2023",
+    "version": "2023",
+    "effective_date": "2027-05-13",
+    "category": "Access Control",
+    "condition": "access_control_present_for_sensitive_pii",
+    "severity": "CRITICAL",
+    "requirement": "A data fiduciary must implement reasonable security safeguards, including access controls, to prevent unauthorized processing of personal data — particularly government-identifier and financial data (DPDP Act 2023, general obligation under Section 8 — General obligations of Data Fiduciary).",
+    "remediation": "Restrict access to Government Identifier and Financial Information fields to a documented, need-to-know access scope and enable access-control enforcement for this dataset."
+  },
+  {
+    "rule_id": "DPDP-R005",
+    "source": "DPDP Act 2023",
+    "version": "2023",
+    "effective_date": "2027-05-13",
+    "category": "Access Control",
+    "condition": "encryption_present_for_sensitive_pii",
+    "severity": "CRITICAL",
+    "requirement": "Reasonable security safeguards under DPDP Act 2023 (general obligation under Section 8 — General obligations of Data Fiduciary) are expected to include encryption of sensitive personal data, particularly government-identifier and financial data, to prevent personal data breaches.",
+    "remediation": "Enable encryption at rest (and in transit) for this dataset, at minimum for fields classified as Government Identifier or Financial Information."
+  },
+  {
+    "rule_id": "DPDP-R006",
+    "source": "DPDP Act 2023",
+    "version": "2023",
+    "effective_date": "2027-05-13",
+    "category": "Notice",
+    "condition": "notice_available",
+    "severity": "HIGH",
+    "requirement": "A data fiduciary must give the data principal an itemized notice, in clear and plain language, describing the personal data being processed and the purpose of processing, at or before the time consent is requested (DPDP Act 2023, Section 5 — Notice).",
+    "remediation": "Publish and serve a compliant notice to data principals before or at the time of collecting this data, and mark notice_status as Available once done."
+  },
+  {
+    "rule_id": "DPDP-R007",
+    "source": "DPDP Act 2023",
+    "version": "2023",
+    "effective_date": "2027-05-13",
+    "category": "Rights",
+    "condition": "rights_mechanism_evidenced",
+    "severity": "MEDIUM",
+    "requirement": "Data principals have the right to access information about their personal data, correct or erase it, and seek grievance redressal (DPDP Act 2023, Section 11 — Right to access information about personal data; Section 12 — Right to correction and erasure of personal data; Section 13 — Right of grievance redressal). A fiduciary must evidence a channel through which these rights can be exercised.",
+    "remediation": "Document a rights-request / grievance-redressal channel (e.g. a grievance officer or support contact) in this dataset's access scope, and make it available to data principals."
+  }
+]
