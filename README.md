@@ -183,6 +183,14 @@ try {
 Invoke-RestMethod -Uri "http://localhost:8000/datasets/$SCAN_ID/rules" -Headers $Headers | Format-Table
 ```
 
+**Check findings and risk score after a scan (Phase 6):**
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/datasets/$SCAN_ID/findings" -Headers $Headers | Format-List
+$risk = Invoke-RestMethod -Uri "http://localhost:8000/datasets/$SCAN_ID/risk" -Headers $Headers
+$risk.score; $risk.band; $risk.breakdown | Format-Table
+```
+
 For later phases: GET/POST-without-a-file endpoints follow the same
 `Invoke-RestMethod -Uri ... -Headers $Headers` pattern shown above (add
 `-Method Post -Body (... | ConvertTo-Json) -ContentType "application/json"`
@@ -218,3 +226,11 @@ end-to-end walkthrough under 3 minutes.)_
   editing rules.json changes `/rules` output with zero code changes
   (verified by hand and in tests) — wired into `/scan`, plus
   `GET /datasets/{scan_id}/rules`.
+- Phase 6 complete: gap detection turns every FAILed rule into a finding
+  with a templated (non-LLM) explanation citing the real affected fields,
+  purpose, and rule_id; an explainable weighted 0-100 risk engine with
+  named weight constants and a `score_breakdown` that always sums exactly
+  to the score; wired into `/scan` (which now also cleans up prior rows on
+  a rescan), plus `GET /datasets/{scan_id}/findings` and
+  `GET /datasets/{scan_id}/risk`. The "bad" messy-sample scenario lands at
+  76/100 (High), the "good" scenario at 28/100 (Low).
