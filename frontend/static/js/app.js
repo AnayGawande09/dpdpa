@@ -8,6 +8,28 @@ function setToken(token) {
   localStorage.setItem("dpdp_token", token);
 }
 
+function clearToken() {
+  localStorage.removeItem("dpdp_token");
+}
+
+// Call after every authenticated fetch. If the token was rejected (expired,
+// or referencing a user that no longer exists — e.g. after a dev DB reset),
+// drop it and bounce back to the login screen instead of leaving the UI
+// stuck showing 401s with no way forward.
+function handleAuthFailure(res) {
+  if (res.status !== 401) return false;
+  clearToken();
+  document.getElementById("upload-section").classList.add("hidden");
+  document.getElementById("context-section").classList.add("hidden");
+  const loginSection = document.getElementById("login-section");
+  loginSection.classList.remove("hidden");
+  showError(
+    document.getElementById("login-error"),
+    "Your session is no longer valid — please log in again."
+  );
+  return true;
+}
+
 function showError(el, message) {
   el.textContent = message;
   el.classList.remove("hidden");
@@ -101,6 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const res = await fetch(`${API_BASE}/datasets/${scanId}/context`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
+    if (handleAuthFailure(res)) return;
     if (res.ok) {
       const context = await res.json();
       fillContextForm(context);
@@ -125,6 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: { Authorization: `Bearer ${getToken()}` },
         body: formData,
       });
+      if (handleAuthFailure(res)) return;
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         showError(uploadError, err.detail || "Upload failed.");
@@ -161,6 +185,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         body: JSON.stringify(contextFieldsFromForm()),
       });
+      if (handleAuthFailure(res)) return;
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         showError(contextError, err.detail || "Could not save context.");
@@ -184,6 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "POST",
         headers: { Authorization: `Bearer ${getToken()}` },
       });
+      if (handleAuthFailure(res)) return;
       if (res.status === 202) {
         const data = await res.json();
         scanStatus.textContent = `Scan status: ${data.status}`;

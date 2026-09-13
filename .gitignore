@@ -10,3 +10,8 @@ reports/*.pdf
 .pytest_cache/
 *.egg-info/
 .DS_Store
+*.pid
+uvicorn*.log
+http_out.log
+http_err.log
+scratch_*

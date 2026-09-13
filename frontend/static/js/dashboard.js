@@ -20,8 +20,17 @@ function setScanIdInUrl(scanId) {
   window.history.pushState({}, "", url);
 }
 
+function redirectToLoginOnAuthFailure() {
+  localStorage.removeItem("dpdp_token");
+  window.location.href = "index.html";
+}
+
 async function fetchJson(path) {
   const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders() });
+  if (res.status === 401) {
+    redirectToLoginOnAuthFailure();
+    return null;
+  }
   if (!res.ok) return null;
   return res.json();
 }
