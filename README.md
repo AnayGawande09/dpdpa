@@ -180,3 +180,7 @@ end-to-end walkthrough under 3 minutes.)_
   heuristics) wired into `/scan`, agreement-based confidence scoring,
   masking on every value before it leaves the pipeline, and
   `GET /datasets/{scan_id}/pii`.
+- Phase 3 complete: deterministic detector_type -> category/subtype
+  classification against the 6-category DPDP taxonomy, a keyword-based
+  fallback path for column_heuristic-only detections, wired into `/scan`,
+  and `GET /datasets/{scan_id}/pii/summary`.

@@ -10,8 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db import get_db
 from app.models.dataset import Dataset, DatasetStatus
+from app.models.pii_classification import PiiClassification
 from app.models.pii_detection import Confidence, DetectorType, PiiDetection
 from app.models.user import User
+from app.pipeline.classification import classify_detection
 from app.pipeline.detection import detect_pii
 from app.routers.auth import get_current_user
 from app.schemas.dataset import DatasetResponse, ScanAcceptedResponse, UploadResponse
@@ -135,13 +137,28 @@ async def run_scan(
     detections = detect_pii(df)
 
     for detection in detections:
+        detection_row = PiiDetection(
+            scan_id=scan_id,
+            field_name=detection.field_name,
+            masked_sample=detection.masked_sample,
+            detector_type=DetectorType(detection.detector_type),
+            confidence=Confidence(detection.confidence),
+        )
+        db.add(detection_row)
+        await db.flush()  # populate detection_row.id for the classification FK
+
+        classification = classify_detection(
+            detector_type=detection.detector_type,
+            field_name=detection.field_name,
+            detection_confidence=detection.confidence,
+        )
         db.add(
-            PiiDetection(
-                scan_id=scan_id,
-                field_name=detection.field_name,
-                masked_sample=detection.masked_sample,
-                detector_type=DetectorType(detection.detector_type),
-                confidence=Confidence(detection.confidence),
+            PiiClassification(
+                detection_id=detection_row.id,
+                category=classification.category,
+                subtype=classification.subtype,
+                confidence=classification.confidence,
+                source=classification.source,
             )
         )
 
