@@ -2,6 +2,7 @@ import os
 
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_dpdp.db"
 os.environ["UPLOAD_DIR"] = "./test_uploads"
+os.environ["MAX_UPLOAD_MB"] = "10"
 
 import shutil
 

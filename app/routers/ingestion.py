@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db import get_db
 from app.models.dataset import Dataset, DatasetStatus
+from app.models.pii_detection import Confidence, DetectorType, PiiDetection
 from app.models.user import User
+from app.pipeline.detection import detect_pii
 from app.routers.auth import get_current_user
 from app.schemas.dataset import DatasetResponse, ScanAcceptedResponse, UploadResponse
 
@@ -19,17 +21,20 @@ router = APIRouter(prefix="/datasets", tags=["ingestion"])
 ALLOWED_EXTENSIONS = {".csv", ".json", ".txt", ".xlsx"}
 
 
-def _parse_file(file_path: str, extension: str) -> tuple[int, list[str]]:
+def load_dataframe(file_path: str, extension: str) -> pd.DataFrame:
     if extension in (".csv", ".txt"):
-        df = pd.read_csv(file_path)
-    elif extension == ".xlsx":
-        df = pd.read_excel(file_path)
-    elif extension == ".json":
+        return pd.read_csv(file_path)
+    if extension == ".xlsx":
+        return pd.read_excel(file_path)
+    if extension == ".json":
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        df = pd.DataFrame(data if isinstance(data, list) else [data])
-    else:
-        raise ValueError(f"Unsupported extension: {extension}")
+        return pd.DataFrame(data if isinstance(data, list) else [data])
+    raise ValueError(f"Unsupported extension: {extension}")
+
+
+def _parse_file(file_path: str, extension: str) -> tuple[int, list[str]]:
+    df = load_dataframe(file_path, extension)
     return len(df), [str(c) for c in df.columns]
 
 
@@ -122,7 +127,24 @@ async def run_scan(
     db: AsyncSession = Depends(get_db),
 ):
     dataset = await _get_dataset_or_404(scan_id, db)
-    # Stub for Phase 1 — later phases implement the real pipeline behind this endpoint.
     dataset.status = DatasetStatus.scanning
+    await db.commit()
+
+    extension = os.path.splitext(dataset.filename)[1].lower()
+    df = load_dataframe(dataset.file_path, extension)
+    detections = detect_pii(df)
+
+    for detection in detections:
+        db.add(
+            PiiDetection(
+                scan_id=scan_id,
+                field_name=detection.field_name,
+                masked_sample=detection.masked_sample,
+                detector_type=DetectorType(detection.detector_type),
+                confidence=Confidence(detection.confidence),
+            )
+        )
+
+    dataset.status = DatasetStatus.scanned
     await db.commit()
     return ScanAcceptedResponse(scan_id=dataset.id, status=dataset.status)

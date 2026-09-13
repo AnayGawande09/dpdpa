@@ -10,7 +10,7 @@ bcrypt==4.2.0
 python-multipart==0.0.9
 pandas==2.2.3
 openpyxl==3.1.5
-spacy==3.7.6
+spacy==3.8.16
 reportlab==4.2.5
 pytest==8.3.3
 pytest-asyncio==0.24.0

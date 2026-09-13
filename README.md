@@ -176,3 +176,7 @@ end-to-end walkthrough under 3 minutes.)_
 - Phase 1 complete: JWT auth with a seeded demo admin, file upload
   (csv/json/txt/xlsx) with validation, dataset metadata storage, a
   `/scan` stub, and a login + upload frontend page.
+- Phase 2 complete: real PII detection (regex + spaCy NER + column-name
+  heuristics) wired into `/scan`, agreement-based confidence scoring,
+  masking on every value before it leaves the pipeline, and
+  `GET /datasets/{scan_id}/pii`.
